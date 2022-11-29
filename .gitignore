@@ -1,0 +1,16 @@
+/.devcontainer/.wandb_api_key
+/.devcontainer/.gpu_uuid
+/data/*/raw
+/data/usbcam
+/res
+/exp
+/wandb
+/local/test.py
+Pipfile.lock
+setup_pi.sh
+*.tar
+*.tgz
+*.jpg
+*.png
+*__pycache__*
+*DS_Store*

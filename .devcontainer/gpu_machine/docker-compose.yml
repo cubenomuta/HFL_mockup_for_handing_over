@@ -1,0 +1,42 @@
+version: "3.8"
+
+services: 
+  hfl_mockup:
+    container_name: "f2mkd_yamasaki"
+    build: 
+      context: ../../
+      dockerfile: ./baseimages/gpu_machine/Dockerfile
+      args: 
+        - USER=$USER
+    shm_size: "32gb"
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+      - "8082:8082"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0", "1"]
+              capabilities: [gpu]
+    volumes:
+      - ../../shell:/home/$USER/project/shell
+      - ../../data:/home/$USER/project/data/
+      - ../../data/CIFAR10/partitions:/home/$USER/project/data/CIFAR10/partitions:ro
+      - ../../local/:/home/$USER/project/local/
+      - ../../src:/home/$USER/project/src/
+      - ../../.vscode:/home/$USER/project/.vscode
+    secrets:
+      - wandb_api_key
+      - gpu_uuid
+    environment:
+      - DATA_ROOT=/home/$USER/project/data
+      - WANDB_API_KEY_FILE=/run/secrets/wandb_api_key
+      - CUDA_VISIBLE_DEVICES_FILE=/run/secrets/gpu_uuid
+
+secrets:
+  wandb_api_key:
+    file: ../.wandb_api_key
+  gpu_uuid:
+    file: ../.gpu_uuid

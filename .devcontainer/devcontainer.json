@@ -1,0 +1,16 @@
+{
+    "name": "Docker-Python",
+    "dockerComposeFile": "./gpu_machine/docker-compose.yml",
+    "service": "hfl_mockup",
+    "workspaceFolder": "/home/yamasaki/project",
+    "customizations": {
+        "vscode": {
+            "settings": {},
+            "extensions": [
+                "ms-python.python",
+                "ms-python.black-formatter"
+            ]
+        }
+    },
+    "overrideCommand": true
+}
