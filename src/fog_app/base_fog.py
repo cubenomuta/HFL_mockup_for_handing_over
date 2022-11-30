@@ -16,7 +16,7 @@ from flwr.server import ClientManager, Server
 from flwr.server.client_proxy import ClientProxy
 from flwr.server.server import fit_clients
 from flwr.server.strategy import Strategy
-from grpc import server
+from utils.utils_dataset import load_federated_dataset
 
 from .fog import Fog
 
@@ -40,7 +40,25 @@ class FlowerFog(Server, Fog):
         )
         self.fid = fid
         self.attribute = "fog"
-        self.config = config
+
+        # dataset configuration
+        self.target = config["target_name"]
+        self.dataset = config["dataset_name"]
+
+        self.trainset = load_federated_dataset(
+            dataset_name=self.dataset,
+            id=self.fid,
+            train=True,
+            target=self.target,
+            attribute=self.attribute,
+        )
+        self.testset = load_federated_dataset(
+            dataset_name=self.dataset,
+            id=self.fid,
+            train=False,
+            target=self.target,
+            attribute=self.attribute,
+        )
 
     def fit(self, ins: FitIns) -> FitRes:
         server_round: int = int(ins.config["server_round"])
@@ -87,7 +105,7 @@ class FlowerFog(Server, Fog):
         return FitRes(
             status=Status(Code.OK, message="success fit"),
             parameters=parameters_prime,
-            num_examples=metrics_aggregated["num_examples"],
+            num_examples=len(self.trainset),
             metrics={},
         )
 

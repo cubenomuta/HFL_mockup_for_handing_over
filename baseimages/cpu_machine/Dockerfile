@@ -57,7 +57,7 @@ RUN pip install pipenv
 
 RUN pipenv install --python 3.8.0
 RUN pipenv install https://download.pytorch.org/whl/cpu/torch-1.12.0%2Bcpu-cp38-cp38-linux_x86_64.whl --skip-lock && \
-pipenv install https://download.pytorch.org/whl/cpu/torchvision-0.12.0%2Bcpu-cp38-cp38-linux_x86_64.whl --skip-lock && \
+pipenv install https://download.pytorch.org/whl/cpu/torchvision-0.13.0%2Bcpu-cp38-cp38-linux_x86_64.whl --skip-lock && \
 pipenv install flwr==1.1.0 --skip-lock && \
 pipenv install tqdm --skip-lock && \
 pipenv install matplotlib --skip-lock && \

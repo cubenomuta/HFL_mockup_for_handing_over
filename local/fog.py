@@ -81,7 +81,7 @@ def main() -> None:
         min_fit_clients=args.num_clients,
         min_available_clients=args.num_clients,
     )
-    client_manager = SimpleClientManager
+    client_manager = SimpleClientManager()
     fog: FlowerFog = FlowerFog(
         fid=args.fid, config=config, client_manager=client_manager, strategy=strategy
     )

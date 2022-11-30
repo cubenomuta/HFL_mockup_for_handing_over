@@ -40,9 +40,13 @@ ReconnectResultsAndFailures = Tuple[
 class HFLServer:
     """Flower server."""
 
-    def __init__(self, *, fog_manager: FogManager, strategy: Optional[Strategy] = None) -> None:
+    def __init__(
+        self, *, fog_manager: FogManager, strategy: Optional[Strategy] = None
+    ) -> None:
         self._fog_manager: FogManager = fog_manager
-        self.parameters: Parameters = Parameters(tensors=[], tensor_type="numpy.ndarray")
+        self.parameters: Parameters = Parameters(
+            tensors=[], tensor_type="numpy.ndarray"
+        )
         self.strategy: Strategy = strategy if strategy is not None else FedAvg()
         self.max_workers: Optional[int] = None
 
@@ -103,9 +107,11 @@ class HFLServer:
                     timeit.default_timer() - start_time,
                 )
                 history.add_loss_centralized(server_round=current_round, loss=loss_cen)
-                history.add_metrics_centralized(server_round=current_round, metrics=metrics_cen)
+                history.add_metrics_centralized(
+                    server_round=current_round, metrics=metrics_cen
+                )
 
-            # Evaluate model on a sample of available clients
+            # Evaluate model on a sample of available fogs
             # res_fed = self.evaluate_round(server_round=current_round, timeout=timeout)
             # if res_fed:
             #     loss_fed, evaluate_metrics_fed, _ = res_fed
@@ -123,29 +129,31 @@ class HFLServer:
         self,
         server_round: int,
         timeout: Optional[float],
-    ) -> Optional[Tuple[Optional[float], Dict[str, Scalar], EvaluateResultsAndFailures]]:
-        """Validate current global model on a number of clients."""
+    ) -> Optional[
+        Tuple[Optional[float], Dict[str, Scalar], EvaluateResultsAndFailures]
+    ]:
+        """Validate current global model on a number of fogs."""
 
-        # Get clients and their respective instructions from strategy
-        client_instructions = self.strategy.configure_evaluate(
+        # Get fogs and their respective instructions from strategy
+        fog_instructions = self.strategy.configure_evaluate(
             server_round=server_round,
             parameters=self.parameters,
             fog_manager=self._fog_manager,
         )
-        if not client_instructions:
-            log(INFO, "evaluate_round %s: no clients selected, cancel", server_round)
+        if not fog_instructions:
+            log(INFO, "evaluate_round %s: no fogs selected, cancel", server_round)
             return None
         log(
             DEBUG,
-            "evaluate_round %s: strategy sampled %s clients (out of %s)",
+            "evaluate_round %s: strategy sampled %s fogs (out of %s)",
             server_round,
-            len(client_instructions),
+            len(fog_instructions),
             self._fog_manager.num_available(),
         )
 
-        # Collect `evaluate` results from all clients participating in this round
-        results, failures = evaluate_clients(
-            client_instructions,
+        # Collect `evaluate` results from all fogs participating in this round
+        results, failures = evaluate_fogs(
+            fog_instructions,
             max_workers=self.max_workers,
             timeout=timeout,
         )
@@ -170,30 +178,32 @@ class HFLServer:
         self,
         server_round: int,
         timeout: Optional[float],
-    ) -> Optional[Tuple[Optional[Parameters], Dict[str, Scalar], FitResultsAndFailures]]:
+    ) -> Optional[
+        Tuple[Optional[Parameters], Dict[str, Scalar], FitResultsAndFailures]
+    ]:
         """Perform a single round of federated averaging."""
 
-        # Get clients and their respective instructions from strategy
-        client_instructions = self.strategy.configure_fit(
+        # Get fogs and their respective instructions from strategy
+        fog_instructions = self.strategy.configure_fit(
             server_round=server_round,
             parameters=self.parameters,
             fog_manager=self._fog_manager,
         )
 
-        if not client_instructions:
-            log(INFO, "fit_round %s: no clients selected, cancel", server_round)
+        if not fog_instructions:
+            log(INFO, "fit_round %s: no fogs selected, cancel", server_round)
             return None
         log(
             DEBUG,
-            "fit_round %s: strategy sampled %s clients (out of %s)",
+            "fit_round %s: strategy sampled %s fogs (out of %s)",
             server_round,
-            len(client_instructions),
+            len(fog_instructions),
             self._fog_manager.num_available(),
         )
 
-        # Collect `fit` results from all clients participating in this round
-        results, failures = fit_clients(
-            client_instructions=client_instructions,
+        # Collect `fit` results from all fogs participating in this round
+        results, failures = fit_fogs(
+            fog_instructions=fog_instructions,
             max_workers=self.max_workers,
             timeout=timeout,
         )
@@ -214,45 +224,48 @@ class HFLServer:
         parameters_aggregated, metrics_aggregated = aggregated_result
         return parameters_aggregated, metrics_aggregated, (results, failures)
 
-    def disconnect_all_clients(self, timeout: Optional[float]) -> None:
-        """Send shutdown signal to all clients."""
-        all_clients = self._fog_manager.all()
-        clients = [all_clients[k] for k in all_clients.keys()]
+    def disconnect_all_fogs(self, timeout: Optional[float]) -> None:
+        """Send shutdown signal to all fogs."""
+        all_fogs = self._fog_manager.all()
+        fogs = [all_fogs[k] for k in all_fogs.keys()]
         instruction = ReconnectIns(seconds=None)
-        client_instructions = [(client_proxy, instruction) for client_proxy in clients]
-        _ = reconnect_clients(
-            client_instructions=client_instructions,
+        fog_instructions = [(fog_proxy, instruction) for fog_proxy in fogs]
+        _ = reconnect_fogs(
+            fog_instructions=fog_instructions,
             max_workers=self.max_workers,
             timeout=timeout,
         )
 
     def _get_initial_parameters(self, timeout: Optional[float]) -> Parameters:
-        """Get initial parameters from one of the available clients."""
+        """Get initial parameters from one of the available fogs."""
 
         # Server-side parameter initialization
-        parameters: Optional[Parameters] = self.strategy.initialize_parameters(fog_manager=self._fog_manager)
+        parameters: Optional[Parameters] = self.strategy.initialize_parameters(
+            fog_manager=self._fog_manager
+        )
         if parameters is not None:
             log(INFO, "Using initial parameters provided by strategy")
             return parameters
 
-        # Get initial parameters from one of the clients
-        log(INFO, "Requesting initial parameters from one random client")
-        random_client = self._fog_manager.sample(1)[0]
+        # Get initial parameters from one of the fogs
+        log(INFO, "Requesting initial parameters from one random fog")
+        random_fog = self._fog_manager.sample(1)[0]
         ins = GetParametersIns(config={})
-        get_parameters_res = random_client.get_parameters(ins=ins, timeout=timeout)
-        log(INFO, "Received initial parameters from one random client")
+        get_parameters_res = random_fog.get_parameters(ins=ins, timeout=timeout)
+        log(INFO, "Received initial parameters from one random fog")
         return get_parameters_res.parameters
 
 
-def reconnect_clients(
-    client_instructions: List[Tuple[FogProxy, ReconnectIns]],
+def reconnect_fogs(
+    fog_instructions: List[Tuple[FogProxy, ReconnectIns]],
     max_workers: Optional[int],
     timeout: Optional[float],
 ) -> ReconnectResultsAndFailures:
-    """Instruct clients to disconnect and never reconnect."""
+    """Instruct fogs to disconnect and never reconnect."""
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         submitted_fs = {
-            executor.submit(reconnect_client, client_proxy, ins, timeout) for client_proxy, ins in client_instructions
+            executor.submit(reconnect_fog, fog_proxy, ins, timeout)
+            for fog_proxy, ins in fog_instructions
         }
         finished_fs, _ = concurrent.futures.wait(
             fs=submitted_fs,
@@ -272,28 +285,29 @@ def reconnect_clients(
     return results, failures
 
 
-def reconnect_client(
-    client: FogProxy,
+def reconnect_fog(
+    fog: FogProxy,
     reconnect: ReconnectIns,
     timeout: Optional[float],
 ) -> Tuple[FogProxy, DisconnectRes]:
-    """Instruct client to disconnect and (optionally) reconnect later."""
-    disconnect = client.reconnect(
+    """Instruct fog to disconnect and (optionally) reconnect later."""
+    disconnect = fog.reconnect(
         reconnect,
         timeout=timeout,
     )
-    return client, disconnect
+    return fog, disconnect
 
 
-def fit_clients(
-    client_instructions: List[Tuple[FogProxy, FitIns]],
+def fit_fogs(
+    fog_instructions: List[Tuple[FogProxy, FitIns]],
     max_workers: Optional[int],
     timeout: Optional[float],
 ) -> FitResultsAndFailures:
-    """Refine parameters concurrently on all selected clients."""
+    """Refine parameters concurrently on all selected fogs."""
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         submitted_fs = {
-            executor.submit(fit_client, client_proxy, ins, timeout) for client_proxy, ins in client_instructions
+            executor.submit(fit_fog, fog_proxy, ins, timeout)
+            for fog_proxy, ins in fog_instructions
         }
         finished_fs, _ = concurrent.futures.wait(
             fs=submitted_fs,
@@ -304,14 +318,18 @@ def fit_clients(
     results: List[Tuple[FogProxy, FitRes]] = []
     failures: List[Union[Tuple[FogProxy, FitRes], BaseException]] = []
     for future in finished_fs:
-        _handle_finished_future_after_fit(future=future, results=results, failures=failures)
+        _handle_finished_future_after_fit(
+            future=future, results=results, failures=failures
+        )
     return results, failures
 
 
-def fit_client(client: FogProxy, ins: FitIns, timeout: Optional[float]) -> Tuple[FogProxy, FitRes]:
-    """Refine parameters on a single client."""
-    fit_res = client.fit(ins, timeout=timeout)
-    return client, fit_res
+def fit_fog(
+    fog: FogProxy, ins: FitIns, timeout: Optional[float]
+) -> Tuple[FogProxy, FitRes]:
+    """Refine parameters on a single fog."""
+    fit_res = fog.fit(ins, timeout=timeout)
+    return fog, fit_res
 
 
 def _handle_finished_future_after_fit(
@@ -327,7 +345,7 @@ def _handle_finished_future_after_fit(
         failures.append(failure)
         return
 
-    # Successfully received a result from a client
+    # Successfully received a result from a fog
     result: Tuple[FogProxy, FitRes] = future.result()
     _, res = result
 
@@ -336,19 +354,20 @@ def _handle_finished_future_after_fit(
         results.append(result)
         return
 
-    # Not successful, client returned a result where the status code is not OK
+    # Not successful, fog returned a result where the status code is not OK
     failures.append(result)
 
 
-def evaluate_clients(
-    client_instructions: List[Tuple[FogProxy, EvaluateIns]],
+def evaluate_fogs(
+    fog_instructions: List[Tuple[FogProxy, EvaluateIns]],
     max_workers: Optional[int],
     timeout: Optional[float],
 ) -> EvaluateResultsAndFailures:
-    """Evaluate parameters concurrently on all selected clients."""
+    """Evaluate parameters concurrently on all selected fogs."""
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         submitted_fs = {
-            executor.submit(evaluate_client, client_proxy, ins, timeout) for client_proxy, ins in client_instructions
+            executor.submit(evaluate_fog, fog_proxy, ins, timeout)
+            for fog_proxy, ins in fog_instructions
         }
         finished_fs, _ = concurrent.futures.wait(
             fs=submitted_fs,
@@ -359,18 +378,20 @@ def evaluate_clients(
     results: List[Tuple[FogProxy, EvaluateRes]] = []
     failures: List[Union[Tuple[FogProxy, EvaluateRes], BaseException]] = []
     for future in finished_fs:
-        _handle_finished_future_after_evaluate(future=future, results=results, failures=failures)
+        _handle_finished_future_after_evaluate(
+            future=future, results=results, failures=failures
+        )
     return results, failures
 
 
-def evaluate_client(
-    client: FogProxy,
+def evaluate_fog(
+    fog: FogProxy,
     ins: EvaluateIns,
     timeout: Optional[float],
 ) -> Tuple[FogProxy, EvaluateRes]:
-    """Evaluate parameters on a single client."""
-    evaluate_res = client.evaluate(ins, timeout=timeout)
-    return client, evaluate_res
+    """Evaluate parameters on a single fog."""
+    evaluate_res = fog.evaluate(ins, timeout=timeout)
+    return fog, evaluate_res
 
 
 def _handle_finished_future_after_evaluate(
@@ -386,7 +407,7 @@ def _handle_finished_future_after_evaluate(
         failures.append(failure)
         return
 
-    # Successfully received a result from a client
+    # Successfully received a result from a fog
     result: Tuple[FogProxy, EvaluateRes] = future.result()
     _, res = result
 
@@ -395,5 +416,5 @@ def _handle_finished_future_after_evaluate(
         results.append(result)
         return
 
-    # Not successful, client returned a result where the status code is not OK
+    # Not successful, fog returned a result where the status code is not OK
     failures.append(result)

@@ -79,7 +79,9 @@ class SimpleFogManager(FogManager):
         Current timeout default: 1 day.
         """
         with self._cv:
-            return self._cv.wait_for(lambda: len(self.fogs) >= num_fogs, timeout=timeout)
+            return self._cv.wait_for(
+                lambda: len(self.fogs) >= num_fogs, timeout=timeout
+            )
 
     def num_available(self) -> int:
         """Return the number of available fogs."""
@@ -123,20 +125,21 @@ class SimpleFogManager(FogManager):
     ) -> List[FogProxy]:
         """Sample a number of Flower FogProxy instances."""
         # Block until at least num_fogs are connected.
-        print(f"sample {min_num_fogs}")
         if min_num_fogs is None:
             min_num_fogs = num_fogs
         self.wait_for(min_num_fogs)
-        print(f"fogs {min_num_fogs} are available")
         # Sample fogs which meet the criterion
         available_fids = list(self.fogs)
         if criterion is not None:
-            available_fids = [fid for fid in available_fids if criterion.select(self.fogs[fid])]
+            available_fids = [
+                fid for fid in available_fids if criterion.select(self.fogs[fid])
+            ]
 
         if num_fogs > len(available_fids):
             log(
                 INFO,
-                "Sampling failed: number of available fogs" " (%s) is less than number of requested fogs (%s).",
+                "Sampling failed: number of available fogs"
+                " (%s) is less than number of requested fogs (%s).",
                 len(available_fids),
                 num_fogs,
             )

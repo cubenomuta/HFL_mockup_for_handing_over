@@ -6,18 +6,18 @@ args=()
 for arg in $@; do
 args+=($arg)
 done
-server_address=${args[1]}
-fog_address=${args[3]}
-fid=${args[5]}
+server_address=20.78.91.146:8080
+fog_address=$1
+fid=$2
 
 dataset="CIFAR10"
-target="iid"
+target="iid_iid"
 model="GNResNet18"
 pretrained="IMAGENET1K_V1"
 
 
 # fl configuration
-num_clients=2
+num_clients=5
 seed=1234
 
 time=`date '+%Y%m%d%H%M'`

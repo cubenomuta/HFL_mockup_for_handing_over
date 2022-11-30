@@ -54,7 +54,7 @@ def main() -> None:
         "model_name": args.model,
     }
     client = FlowerClient(cid=args.cid, config=config)
-    # start_client(server_address=args.server_address, client=client)
+    start_client(server_address=args.server_address, client=client)
 
 
 if __name__ == "__main__":
