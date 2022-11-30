@@ -8,12 +8,13 @@ from dataset_app import (
     CentralizedCelebaAndUsbcamVerification,
     CentralizedCelebaVerification,
     CIFAR10_truncated,
+    CIFAR100_truncated,
     FederatedCelebaVerification,
     FederatedUsbcamVerification,
 )
 from flwr.common import Scalar
 from torch.utils.data import Dataset, random_split
-from torchvision.datasets import CIFAR10
+from torchvision.datasets import CIFAR10, CIFAR100
 from torchvision.transforms import transforms
 
 DATA_ROOT = Path(os.environ["DATA_ROOT"])
@@ -24,10 +25,32 @@ def load_centralized_dataset(
 ) -> Dataset:
     if dataset_name == "CIFAR10":
         transform = transforms.Compose(
-            [transforms.ToTensor(), transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))]
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    (0.4914, 0.4822, 0.4465),
+                    (0.2023, 0.1994, 0.2010),
+                ),
+            ]
         )
         root = DATA_ROOT / "CIFAR10" / "raw"
-        dataset = CIFAR10(root=root, train=train, transform=transform, download=download)
+        dataset = CIFAR10(
+            root=root, train=train, transform=transform, download=download
+        )
+    elif dataset_name == "CIFAR100":
+        transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    (0.5070, 0.4865, 0.4409),
+                    (0.2673, 0.2564, 0.2762),
+                ),
+            ]
+        )
+        root = DATA_ROOT / "CIFAR100" / "raw"
+        dataset = CIFAR100(
+            root=root, train=train, transform=transform, download=download
+        )
     elif dataset_name == "CelebA":
         assert target is not None
         if target == "mix_usbcam":
@@ -40,14 +63,50 @@ def load_centralized_dataset(
 
 
 def load_federated_dataset(
-    dataset_name: str, id: str, train: bool = True, target: str = None, download: bool = False
+    dataset_name: str,
+    id: str,
+    train: bool = True,
+    target: str = None,
+    attribute: str = None,
+    download: bool = False,
 ) -> Dataset:
     if dataset_name == "CIFAR10":
         transform = transforms.Compose(
-            [transforms.ToTensor(), transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))]
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    (0.4914, 0.4822, 0.4465),
+                    (0.2023, 0.1994, 0.2010),
+                ),
+            ]
         )
         dataset = CIFAR10_truncated(
-            root=DATA_ROOT, id=id, train=train, target=target, transform=transform, download=download
+            root=DATA_ROOT,
+            id=id,
+            train=train,
+            target=target,
+            attribute=attribute,
+            transform=transform,
+            download=download,
+        )
+    elif dataset_name == "CIFAR100":
+        transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    (0.5070, 0.4865, 0.4409),
+                    (0.2673, 0.2564, 0.2762),
+                ),
+            ]
+        )
+        dataset = CIFAR100_truncated(
+            root=DATA_ROOT,
+            id=id,
+            train=train,
+            target=target,
+            attribute=attribute,
+            transform=transform,
+            download=download,
         )
     elif dataset_name == "CelebA":
         assert target is not None
@@ -83,23 +142,3 @@ def split_validation(dataset: Dataset, split_ratio: float) -> Tuple[Dataset, Dat
     num_val = num_samples - num_train
     trainset, valset = random_split(dataset, [num_train, num_val])
     return trainset, valset
-
-
-def write_json(dataset: str, target: str, json_data: Dict[str, List[np.ndarray]], train: bool):
-    DATA_ROOT = Path(os.environ["DATA_ROOT"])
-    if dataset == "CIFAR10":
-        save_dir = DATA_ROOT / "CIFAR10" / "partitions" / target
-    elif dataset == "CelebA":
-        save_dir = DATA_ROOT / "celeba" / "attrs" / target
-
-    if not os.path.exists(save_dir):
-        os.mkdir(save_dir)
-
-    if train:
-        file_path = save_dir / "train_data.json"
-    else:
-        file_path = save_dir / "test_data.json"
-
-    print("writing {}".format(file_path))
-    with open(file_path, "w") as outfile:
-        json.dump(json_data, outfile)

@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "./local/create_partitions.py", line 144, in <module>
+    main(args)
+  File "./local/create_partitions.py", line 100, in main
+    fog_train_json_data = partitioning(
+  File "./local/create_partitions.py", line 63, in partitioning
+    json_data = create_noniid(
+  File "/home/yamasaki/project/src/dataset_app/common.py", line 172, in create_noniid
+    data_idx = list_labels_idxes[cls].pop()
+IndexError: pop from empty list

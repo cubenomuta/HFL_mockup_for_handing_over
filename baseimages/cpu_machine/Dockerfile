@@ -8,6 +8,7 @@ ENV LANGUAGE en_US:en_US
 ENV LC_ALL en_US.UTF-8
 
 RUN apt-get clean && apt-get update && apt-get install -y iputils-ping \
+iperf3 \
 net-tools \
 dnsutils \
 tmux
@@ -54,19 +55,11 @@ ENV PATH $PYENV_ROOT/shims:$PATH
 RUN eval "$(pyenv init -)" && pyenv install 3.8.0 && pyenv global 3.8.0
 RUN pip install pipenv
 
-WORKDIR /project
 RUN pipenv install --python 3.8.0
-RUN pipenv install torch --skip-lock && \
-pipenv install torchvision --skip-lock && \
-pipenv install flwr==1.0.0 --skip-lock && \
+RUN pipenv install https://download.pytorch.org/whl/cpu/torch-1.12.0%2Bcpu-cp38-cp38-linux_x86_64.whl --skip-lock && \
+pipenv install https://download.pytorch.org/whl/cpu/torchvision-0.12.0%2Bcpu-cp38-cp38-linux_x86_64.whl --skip-lock && \
+pipenv install flwr==1.1.0 --skip-lock && \
 pipenv install tqdm --skip-lock && \
-pipenv install ray==1.3.0 --skip-lock && \
-pipenv install ray[tune] --skip-lock && \
-pipenv install pandas --skip-lock && \
-pipenv install optuna --skip-lock && \
 pipenv install matplotlib --skip-lock && \
 pipenv install wandb --skip-lock && \
-pipenv install scikit-image && \
-pipenv install opencv-python==4.6.0.66 --skip-lock && \
-pipenv install facenet-pytorch && \
 pipenv lock

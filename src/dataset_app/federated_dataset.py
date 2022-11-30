@@ -4,14 +4,14 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset
-from torchvision.datasets import CIFAR10, FashionMNIST
+from torchvision.datasets import CIFAR10, CIFAR100, FashionMNIST
 from torchvision.transforms import transforms
 
 
 class FashionMNIST_truncated(Dataset):
     def __init__(
         self,
-        root: Path,
+        root: str,
         dataidxs=None,
         train=True,
         transform=None,
@@ -28,7 +28,9 @@ class FashionMNIST_truncated(Dataset):
         self.data, self.target = self.__build_truncated_dataset__()
 
     def __build_truncated_dataset__(self):
-        mnist_dataobj = FashionMNIST(self.root, self.train, self.transform, self.target_transform, self.download)
+        mnist_dataobj = FashionMNIST(
+            self.root, self.train, self.transform, self.target_transform, self.download
+        )
         data = mnist_dataobj.data
         target = mnist_dataobj.targets
 
@@ -71,10 +73,11 @@ class CIFAR10_truncated(Dataset):
 
     def __init__(
         self,
-        root: Path,
+        root: str,
         id: str = None,
         train: bool = True,
         target: str = None,
+        attribute: str = None,
         transform=None,
         target_transform=None,
         download=False,
@@ -85,12 +88,14 @@ class CIFAR10_truncated(Dataset):
         self.target_transform = target_transform
         self.download = download
 
-        self.data_root = root / "CIFAR10" / "raw"
-        self.json_root = root / "CIFAR10" / "partitions" / target
-        if train:
-            self.json_path = self.json_root / "train_data.json"
-        else:
-            self.json_path = self.json_root / "test_data.json"
+        self.data_root = Path(root) / "CIFAR10" / "raw"
+        self.json_path = None
+        if target is not None and attribute is not None:
+            self.json_root = Path(root) / "CIFAR10" / "partitions" / target / attribute
+            if self.train:
+                self.json_path = self.json_root / "train_data.json"
+            else:
+                self.json_path = self.json_root / "test_data.json"
 
         self.data, self.target = self.__build_truncated_dataset__()
 
@@ -123,8 +128,84 @@ class CIFAR10_truncated(Dataset):
         """
         img, target = self.data[index], self.target[index]
 
-        # doing this so that it is consistent with all other datasets
-        # to return a PIL Image
+        if self.transform is not None:
+            img = self.transform(img)
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return img, target
+
+    def __len__(self):
+        return len(self.data)
+
+
+class CIFAR100_truncated(Dataset):
+    """
+    Copied and modified from
+    NIID-Bench
+    """
+
+    def __init__(
+        self,
+        root: str,
+        id: str = None,
+        train: bool = True,
+        target: str = None,
+        attribute: str = None,
+        transform=None,
+        target_transform=None,
+        download=False,
+    ):
+
+        self.id = id
+        self.train = train
+        self.transform = transform
+        self.target_transform = target_transform
+        self.download = download
+
+        self.data_root = Path(root) / "CIFAR100" / "raw"
+        self.json_path = None
+        if target is not None and attribute is not None:
+            self.json_root = (
+                Path(root) / "CIFAR100" / "paratitions" / target / attribute
+            )
+            if self.train:
+                self.json_path = self.json_root / "train_data.json"
+            else:
+                self.json_path = self.json_root / "test_data.json"
+
+        self.data, self.target = self.__build_truncated_dataset__()
+
+    def __build_truncated_dataset__(self):
+
+        cifar_dataobj = CIFAR100(
+            self.data_root,
+            self.train,
+            self.transform,
+            self.target_transform,
+            self.download,
+        )
+        data = cifar_dataobj.data
+        target = np.array(cifar_dataobj.targets)
+
+        if self.json_path is not None:
+            with open(self.json_path, "r") as f:
+                json_data = json.load(f)
+            data_idx = json_data[self.id]
+            data = data[data_idx]
+            target = target[data_idx]
+
+        return data, target
+
+    def __getitem__(self, index):
+        """
+        Args:
+            index (int): Index
+        Returns:
+            tuple: (image, target) where target is index of the target class.
+        """
+        img, target = self.data[index], self.target[index]
 
         if self.transform is not None:
             img = self.transform(img)
@@ -139,7 +220,9 @@ class CIFAR10_truncated(Dataset):
 
 
 class FederatedCelebaVerification(Dataset):
-    def __init__(self, id: str, target: str = "small", train: bool = True, transform=None) -> None:
+    def __init__(
+        self, id: str, target: str = "small", train: bool = True, transform=None
+    ) -> None:
         self.id = int(id)
         self.root = Path("./data/celeba")
         self.transform = transform
@@ -207,3 +290,14 @@ class FederatedUsbcamVerification(Dataset):
 
     def __len__(self):
         return self.num_samples
+
+
+if __name__ == "__main__":
+    dataset = CIFAR10_truncated(
+        root="./data",
+        id="0",
+        train=True,
+        target="iid_iid",
+        attribute="client",
+        download=True,
+    )

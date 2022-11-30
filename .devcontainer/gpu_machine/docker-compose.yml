@@ -24,6 +24,8 @@ services:
       - ../../shell:/home/$USER/project/shell
       - ../../data:/home/$USER/project/data/
       - ../../data/CIFAR10/partitions:/home/$USER/project/data/CIFAR10/partitions:ro
+      - ../../data/FashionMNIST/partitions:/home/$USER/project/data/FashionMNIST/partitions:ro
+      - ../../data/MNIST/partitions:/home/$USER/project/data/MNIST/partitions:ro
       - ../../local/:/home/$USER/project/local/
       - ../../src:/home/$USER/project/src/
       - ../../.vscode:/home/$USER/project/.vscode

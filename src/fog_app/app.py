@@ -4,18 +4,16 @@ from logging import INFO, WARN
 from typing import Optional, Tuple
 
 from flwr.client.grpc_client.connection import grpc_connection
-
-# typing
 from flwr.common import GRPC_MAX_MESSAGE_LENGTH
 from flwr.common.logger import log
 from flwr.server import ClientManager, SimpleClientManager
 from flwr.server.grpc_server.grpc_server import start_grpc_server
-from flwr.server.strategy import FedAvg, Strategy
+from flwr.server.strategy import Strategy
 
-from fog_app.base_fog import FlowerFog
-from fog_app.fog import Fog
-
+from .base_fog import FlowerFog
+from .fog import Fog
 from .message_handler.message_handler import handle
+from .strategy import FedAvg
 
 DEFAULT_SERVER_ADDRESS = "[::]:8080"
 
@@ -32,9 +30,9 @@ class FogConfig:
 
 def start_fog(
     *,
-    fid: str,
     server_address: str,
     fog_address: str,
+    fid: Optional[str] = None,
     fog: Optional[Fog] = None,
     config: Optional[FogConfig] = None,
     strategy: Optional[Strategy] = None,
@@ -45,7 +43,11 @@ def start_fog(
 ) -> None:
     # Initialize fog and fog config
     initialized_fog, initialized_config = _init_defaults(
-        fid=fid, fog=fog, config=config, strategy=strategy, client_manager=client_manager
+        fid=fid,
+        fog=fog,
+        config=config,
+        strategy=strategy,
+        client_manager=client_manager,
     )
 
     # Start gRPC server
@@ -72,7 +74,9 @@ def start_fog(
 
             while True:
                 server_message = receive()
-                fog_message, sleep_duration, keep_going = handle(initialized_fog, server_message)
+                fog_message, sleep_duration, keep_going = handle(
+                    initialized_fog, server_message
+                )
                 send(fog_message)
                 if not keep_going:
                     break
@@ -105,7 +109,9 @@ def _init_defaults(
             strategy = FedAvg()
         if config is None:
             config = {}
-        fog = FlowerFog(fid=fid, config=config, client_manager=client_manager, strategy=strategy)
+        fog = FlowerFog(
+            fid=fid, config=config, client_manager=client_manager, strategy=strategy
+        )
     elif strategy is not None:
         log(WARN, "Both fog and strategy were provided, ignoring strategy")
 

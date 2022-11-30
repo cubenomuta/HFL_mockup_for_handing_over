@@ -2,15 +2,22 @@
 
 . ./shell/path.sh
 
-args=()
-for arg in $@; do
-args+=($arg)
-done
-server_address=${args[1]}
-cid=${args[3]}
+# args=()
+# for arg in $@; do
+# args+=($arg)
+# done
+# server_address=${args[1]}
+# cid=${args[3]}
+
+cid=$CID
+if [ ${cid} -gt 4 ]; then
+server_address="133.11.194.40:8082"
+else
+server_address="133.11.194.40:8081"
+fi    
 
 dataset="CIFAR10"
-target="iid"
+target="iid_iid"
 model="GNResNet18"
 pretrained="None"
 
