@@ -6,15 +6,16 @@ from logging import ERROR, INFO
 from typing import Any, Callable, Dict, List, Optional
 
 import ray
-
-from client_app.client import Client
+from flwr.client.client import Client
 from flwr.common.logger import log
-from server_app.server import Server
-from server_app.app import ServerConfig, _fl, _init_defaults
-from server_app.fog_manager import ClientManager
-from server_app.history import History
-from server_app.strategy.strategy import Strategy
+from flwr.server import Server
+from flwr.server.app import ServerConfig, _fl, _init_defaults
+from flwr.server.client_manager import ClientManager
+from flwr.server.history import History
+from flwr.server.strategy import Strategy
+
 from .ray_transport.ray_client_proxy import RayClientProxy
+from .ray_transport.ray_dml_client_proxy import RayDMLClientProxy
 
 INVALID_ARGUMENTS_START_SIMULATION = """
 INVALID ARGUMENTS ERROR
@@ -24,7 +25,7 @@ Invalid Arguments in method:
     client_fn: Callable[[str], Client],
     num_clients: Optional[int] = None,
     clients_ids: Optional[List[str]] = None,
-    client_resources: Optional[Dict[str, int]] = None,
+    client_resources: Optional[Dict[str, float]] = None,
     server: Optional[Server] = None,
     config: ServerConfig = None,
     strategy: Optional[Strategy] = None,
@@ -45,7 +46,7 @@ def start_simulation(  # pylint: disable=too-many-arguments
     client_fn: Callable[[str], Client],
     num_clients: Optional[int] = None,
     clients_ids: Optional[List[str]] = None,
-    client_resources: Optional[Dict[str, int]] = None,
+    client_resources: Optional[Dict[str, float]] = None,
     server: Optional[Server] = None,
     config: Optional[ServerConfig] = None,
     strategy: Optional[Strategy] = None,
@@ -73,14 +74,14 @@ def start_simulation(  # pylint: disable=too-many-arguments
         List `client_id`s for each client. This is only required if
         `num_clients` is not set. Setting both `num_clients` and `clients_ids`
         with `len(clients_ids)` not equal to `num_clients` generates an error.
-    client_resources : Optional[Dict[str, int]] (default: None)
+    client_resources : Optional[Dict[str, float]] (default: None)
         CPU and GPU resources for a single client. Supported keys are
         `num_cpus` and `num_gpus`. Example: `{"num_cpus": 4, "num_gpus": 1}`.
         To understand the GPU utilization caused by `num_gpus`, consult the Ray
         documentation on GPU support.
-    server: Optional[flwr.server.Server] (default: None). An implementation
-        of the abstract base class `flwr.server.Server`. If no instance is
-        provided, then `start_server` will create one.
+    server : Optional[flwr.server.Server] (default: None).
+        An implementation of the abstract base class `flwr.server.Server`. If no
+        instance is provided, then `start_server` will create one.
     config: ServerConfig (default: None).
         Currently supported values are `num_rounds` (int, default: 1) and
         `round_timeout` in seconds (float, default: None).
@@ -88,7 +89,7 @@ def start_simulation(  # pylint: disable=too-many-arguments
         An implementation of the abstract base class `flwr.server.Strategy`. If
         no strategy is provided, then `start_server` will use
         `flwr.server.strategy.FedAvg`.
-    client_manager: Optional[flwr.server.ClientManager] (default: None)
+    client_manager : Optional[flwr.server.ClientManager] (default: None)
         An implementation of the abstract base class `flwr.server.ClientManager`.
         If no implementation is provided, then `start_simulation` will use
         `flwr.server.client_manager.SimpleClientManager`.
@@ -96,17 +97,15 @@ def start_simulation(  # pylint: disable=too-many-arguments
         Optional dictionary containing arguments for the call to `ray.init`.
         If ray_init_args is None (the default), Ray will be initialized with
         the following default args:
-            {
-                "ignore_reinit_error": True,
-                "include_dashboard": False,
-            }
+        { "ignore_reinit_error": True, "include_dashboard": False }
         An empty dictionary can be used (ray_init_args={}) to prevent any
         arguments from being passed to ray.init.
     keep_initialised: Optional[bool] (default: False)
         Set to True to prevent `ray.shutdown()` in case `ray.is_initialized()=True`.
     Returns
     -------
-        hist: flwr.server.history.History. Object containing metrics from training.
+        hist : flwr.server.history.History.
+            Object containing metrics from training.
     """
     # pylint: disable-msg=too-many-locals
 
@@ -160,17 +159,25 @@ def start_simulation(  # pylint: disable=too-many-arguments
     # Register one RayClientProxy object for each client with the ClientManager
     resources = client_resources if client_resources is not None else {}
     for cid in cids:
-        client_proxy = RayClientProxy(
-            client_fn=client_fn,
-            cid=cid,
-            resources=resources,
-        )
-        initialized_server.client_manager().register(client=client_proxy)
+        if "parameters" in list(client_fn.__code__.co_varnames):
+            client_proxy = RayDMLClientProxy(
+                client_fn=client_fn,
+                cid=cid,
+                resources=resources,
+            )
+            initialized_server.client_manager().register(client=client_proxy)
+        else:
+            client_proxy = RayClientProxy(
+                client_fn=client_fn,
+                cid=cid,
+                resources=resources,
+            )
+            initialized_server.client_manager().register(client=client_proxy)
 
     # Start training
-    hist, params = _fl(
+    hist = _fl(
         server=initialized_server,
         config=initialized_config,
     )
 
-    return hist, params
+    return hist

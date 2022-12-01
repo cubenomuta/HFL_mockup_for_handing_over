@@ -10,20 +10,19 @@
 # cid=${args[3]}
 
 cid=$CID
-if [ ${cid} -gt 4 ]; then
-server_address="133.11.194.40:8082"
-else
-server_address="133.11.194.40:8081"
-fi    
+# if [ ${cid} -gt 4 ]; then
+# server_address="133.11.194.40:8082"
+# else
+# server_address="133.11.194.40:8081"
+# fi    
+server_address="133.11.194.40:8080"
 
+# fl_configuration
+strategy="FedAvg"
+server_model="GNResNet18"
+client_model="GNResNet18"
 dataset="CIFAR10"
 target="iid_iid"
-model="GNResNet18"
-pretrained="None"
-
-
-# fl configuration
-num_rounds=10
 num_clients=5
 
 # fit configuration
@@ -45,9 +44,11 @@ fi
 
 python ./local/client.py --server_address ${server_address} \
 --cid ${cid} \
+--strategy ${strategy} \
+--server_model ${server_model} \
+--client_model ${client_model} \
 --dataset ${dataset} \
 --target ${target} \
---model ${model} \
 --seed ${seed} &
 # 2>"${exp_dir}/logs/client${cid}_flower.log" &
 

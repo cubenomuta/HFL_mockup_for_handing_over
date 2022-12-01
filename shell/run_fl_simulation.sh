@@ -9,24 +9,22 @@ export CUDA_VISIBLE_DEVICES="$line"
 done < ${CUDA_VISIBLE_DEVICES_FILE}
 fi
 
-dataset="CelebA"
-target="small"
-model="GNResNet18"
-
 # fl configuration
+strategy="FML"
+server_model="GNResNet18"
+client_model="GNResNet18"
+dataset="CIFAR10"
+target="iid_iid"
 num_rounds=2
 num_clients=10
 fraction_fit=1
 
 # fit configuration
-batch_size=5
-local_epochs=1
-weight_decay=0.005
-lr=$1
-
+yaml_path="./conf/${dataset}/${strategy}_${server_model}_${client_model}/fit_config.yaml"
 seed=1234
 
-exp_dir="./res/simulation/${dataset}/FedAvg_${model}/"${target}"/R_${num_rounds}_B_${batch_size}_E_${local_epochs}_lr_${lr}_S_${seed}"
+time=`date '+%Y%m%d%H%M'`
+exp_dir="./simulation/${dataset}/${strategy}_${server_model}_${client_model}/"${target}"/run_${time}"
 
 if [ ! -e "${exp_dir}" ]; then
     mkdir -p "${exp_dir}/logs/"
@@ -37,19 +35,18 @@ fi
 ray start --head --min-worker-port 20000 --max-worker-port 29999 --num-cpus 20 --num-gpus 10
 sleep 1 
 
-python ./local/simulation.py \
+python ./local/fl_simulation.py \
+--strategy ${strategy} \
+--server_model ${server_model} \
+--client_model ${client_model} \
+--dataset ${dataset} \
+--target ${target} \
 --num_rounds ${num_rounds} \
 --num_clients ${num_clients} \
 --fraction_fit ${fraction_fit} \
---dataset ${dataset} \
---target ${target} \
---model ${model} \
---local_epochs ${local_epochs} \
---batch_size ${batch_size} \
---lr ${lr} \
---weight_decay ${weight_decay} \
---seed ${seed} \
-2>"${exp_dir}/logs/flower.log" &
+--yaml_path ${yaml_path} \
+--seed ${seed} &#\
+# 2>"${exp_dir}/logs/flower.log" &
 
 # This will allow you to use CTRL+C to stop all background processes
 trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM
