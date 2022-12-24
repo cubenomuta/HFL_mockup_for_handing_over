@@ -8,12 +8,18 @@ services:
       dockerfile: ./baseimages/cpu_machine/Dockerfile
       args: 
         - USER=$USER
-    shm_size: "8gb"
+    shm_size: "128gb"
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: "108"
     ports:
       - "8080:8080"
     volumes:
       - ../../shell:/home/$USER/project/shell
       - ../../data:/home/$USER/project/data/
+      - ../../conf:/home/$USER/project/conf/
+      - ../../simulation:/home/$USER/project/simulation/
       - ../../data/CIFAR10/partitions:/home/$USER/project/data/CIFAR10/partitions:ro
       - ../../data/FashionMNIST/partitions:/home/$USER/project/data/FashionMNIST/partitions:ro
       - ../../data/MNIST/partitions:/home/$USER/project/data/MNIST/partitions:ro

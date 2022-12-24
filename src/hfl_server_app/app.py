@@ -127,7 +127,7 @@ def _init_defaults(
             fog_manager = SimpleFogManager()
         if strategy is None:
             strategy = FedAvg()
-        server = HFLServer(fog_manager=fog_manager, strategy=strategy)
+        hfl_server = HFLServer(fog_manager=fog_manager, strategy=strategy)
     elif strategy is not None:
         log(WARN, "Both server and strategy were provided, ignoring strategy")
 
@@ -135,7 +135,7 @@ def _init_defaults(
     if config is None:
         config = ServerConfig()
 
-    return server, config
+    return hfl_server, config
 
 
 def _fl(

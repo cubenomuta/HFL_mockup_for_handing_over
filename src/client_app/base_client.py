@@ -1,5 +1,6 @@
 import warnings
 from logging import INFO
+from os import stat
 from typing import Dict
 
 import ray
@@ -43,17 +44,18 @@ class FlowerClient(Client):
         # dataset configuration
         self.dataset = config["dataset_name"]
         self.target = config["target_name"]
-        validation_ratio = 0.8
-        dataset = load_federated_dataset(
+
+        self.trainset = load_federated_dataset(
             dataset_name=self.dataset,
             id=self.cid,
             train=True,
             target=self.target,
             attribute=self.attribute,
         )
-        self.trainset, self.valset = split_validation(
-            dataset, split_ratio=validation_ratio
-        )
+        # validation_ratio = 0.8
+        # self.trainset, self.valset = split_validation(
+        #     dataset, split_ratio=validation_ratio
+        # )
         self.testset = load_federated_dataset(
             dataset_name=self.dataset,
             id=self.fid,
@@ -93,14 +95,13 @@ class FlowerClient(Client):
         trainloader = DataLoader(
             self.trainset,
             batch_size=batch_size,
-            num_workers=2,
             pin_memory=True,
             shuffle=True,
             drop_last=True,
         )
-        valloader = DataLoader(
-            self.valset, batch_size=100, shuffle=False, drop_last=False
-        )
+        # valloader = DataLoader(
+        #     self.valset, batch_size=100, shuffle=False, drop_last=False
+        # )
 
         train(
             self.net,
@@ -108,19 +109,11 @@ class FlowerClient(Client):
             epochs=epochs,
             lr=lr,
             weight_decay=weight_decay,
-            device=self.device,
-            use_tqdm=True,
+            device="cpu",  # self.device,
+            use_tqdm=False,
         )
-        results = test(self.net, valloader, device=self.device)
         parameters_prime: Parameters = ndarrays_to_parameters(self.net.get_weights())
-        log(
-            INFO,
-            "fit() on client cid=%s: val loss %s / val acc %s",
-            self.cid,
-            results["loss"],
-            results["acc"],
-        )
-
+        log(INFO, "fit() on client cid=%s", self.cid)
         return FitRes(
             status=Status(Code.OK, message="Success fit"),
             parameters=parameters_prime,
@@ -134,7 +127,7 @@ class FlowerClient(Client):
         batch_size: int = int(ins.config["batch_size"])
 
         self.net.set_weights(weights)
-        testloader = DataLoader(self.testset, batch_size=batch_size)
+        testloader = DataLoader(self.testset, batch_size=batch_size, shuffle=False)
         results = test(self.net, testloader=testloader)
         log(
             INFO,
@@ -143,12 +136,17 @@ class FlowerClient(Client):
             results["loss"],
             results["acc"],
         )
+        metrics = {
+            "cid": self.cid,
+            "acc": results["acc"],
+            "loss": results["loss"],
+        }
 
         return EvaluateRes(
             status=Status(Code.OK, message="Success eval"),
             loss=float(results["loss"]),
             num_examples=len(self.testset),
-            metrics={"accuracy": results["acc"]},
+            metrics=metrics,
         )
 
 
@@ -168,14 +166,10 @@ class FlowerRayClient(FlowerClient):
         self.net.set_weights(weights)
 
         # dataset configuration train / validation
-        num_workers = int(ray.get_runtime_context().get_assigned_resources()["CPU"])
         trainloader = DataLoader(
             self.trainset,
             batch_size=batch_size,
-            num_workers=num_workers,
-            pin_memory=True,
             shuffle=True,
-            drop_last=True,
         )
 
         train(
@@ -194,3 +188,33 @@ class FlowerRayClient(FlowerClient):
             num_examples=len(self.trainset),
             metrics={},
         )
+
+    def evaluate(self, ins: EvaluateIns) -> EvaluateRes:
+        # unwrapping EvaluateIns
+        weights: NDArrays = parameters_to_ndarrays(ins.parameters)
+        batch_size: int = int(ins.config["batch_size"])
+
+        # set parameters
+        self.net.set_weights(weights)
+
+        # dataset configuration
+        # num_workers = int(ray.get_runtime_context().get_assigned_resources()["CPU"])
+        testloader = DataLoader(
+            dataset=self.testset,
+            batch_size=batch_size,
+            shuffle=False,
+        )
+
+        result = test(self.net, testloader=testloader, device="cpu")
+        metrics = {"acc": result["acc"], "cid": str(self.cid)}
+        return EvaluateRes(
+            status=Status(Code.OK, message="Success evaluate"),
+            loss=result["loss"],
+            num_examples=len(self.testset),
+            metrics=metrics,
+        )
+
+    def __del__(self):
+        self.trainset = None
+        self.testset = None
+        self.net = None

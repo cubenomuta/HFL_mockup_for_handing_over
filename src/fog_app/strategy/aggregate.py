@@ -12,21 +12,46 @@ from flwr.common.typing import NDArray
 from models.metric_learning import SpreadoutRegularizer
 
 
-def aggregate_and_spreadout(results: List[Tuple[NDArrays, int, str]], num_clients: int, num_features: int, nu: float, lr: float) ->Tuple[NDArrays, Dict[str, NDArray]]:
+def aggregate(results: List[Tuple[NDArrays, int]]) -> NDArrays:
+    """Compute weighted average."""
+    # Calculate the total number of examples used during training
+    num_examples_total = sum([num_examples for _, num_examples in results])
+
+    # Create a list of weights, each multiplied by the related number of examples
+    weighted_weights = [
+        [layer * num_examples for layer in weights] for weights, num_examples in results
+    ]
+
+    # Compute average weights of each layer
+    # weights_prime: NDArrays = [
+    #     reduce(np.add, layer_updates) / num_examples_total
+    #     for layer_updates in zip(*weighted_weights)
+    # ]
+    # return weights_prime
+    return weighted_weights[0]
+
+
+def aggregate_and_spreadout(
+    results: List[Tuple[NDArrays, int, str]],
+    num_clients: int,
+    num_features: int,
+    nu: float,
+    lr: float,
+) -> Tuple[NDArrays, Dict[str, NDArray]]:
     """Compute weighted average."""
     # Create a classification matrix from class embeddings
-    embeddings: NDArray = np.zeros((num_clients,num_features))
-    cid_dict: Dict[str, int] = {} 
-    embedding_dict: Dict[str, NDArray] = {} 
+    embeddings: NDArray = np.zeros((num_clients, num_features))
+    cid_dict: Dict[str, int] = {}
+    embedding_dict: Dict[str, NDArray] = {}
 
     for idx, res in enumerate(results):
         weights, _, cid = res
         cid_dict[cid] = idx
         if "ipv4" in cid:
-            embeddings[idx,:] = weights[-1]
+            embeddings[idx, :] = weights[-1]
         else:
-            embeddings[int(cid),:] = weights[-1]
-    
+            embeddings[int(cid), :] = weights[-1]
+
     embeddings = torch.nn.Parameter(torch.tensor(embeddings))
     regularizer = SpreadoutRegularizer(nu=nu)
     optimizer = torch.optim.SGD([embeddings], lr=lr)
@@ -36,13 +61,14 @@ def aggregate_and_spreadout(results: List[Tuple[NDArrays, int, str]], num_client
     loss.backward()
     optimizer.step()
     embeddings = F.normalize(embeddings).detach().cpu().numpy()
-    
+
     # Calculate the total number of examples used during training
     num_examples_total = sum([num_examples for _, num_examples, _ in results])
 
     # Create a list of weights, each multiplied by the related number of examples
     feature_weights = [
-        [layer * num_examples for layer in weights[:-1]] for weights, num_examples, _ in results
+        [layer * num_examples for layer in weights[:-1]]
+        for weights, num_examples, _ in results
     ]
 
     # Compute average weights of each layer

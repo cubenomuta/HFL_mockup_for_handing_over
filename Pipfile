@@ -4,21 +4,19 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-torch = {file = "https://download.pytorch.org/whl/cu113/torch-1.12.0%2Bcu113-cp38-cp38-linux_x86_64.whl"}
-torchvision = {file = "https://download.pytorch.org/whl/cu113/torchvision-0.13.0%2Bcu113-cp38-cp38-linux_x86_64.whl"}
-flwr = "==1.0.0"
+torch = {file = "https://download.pytorch.org/whl/cpu/torch-1.12.0%2Bcpu-cp38-cp38-linux_x86_64.whl"}
+torchvision = {file = "https://download.pytorch.org/whl/cpu/torchvision-0.13.0%2Bcpu-cp38-cp38-linux_x86_64.whl"}
+flwr = "==1.1.0"
 tqdm = "*"
-ray = {extras = ["tune"], version = "*"}
+ray = "==2.1.0"
 pandas = "*"
 optuna = "*"
 matplotlib = "*"
 wandb = "*"
-scikit-image = "*"
-opencv-python = "==4.6.0.66"
-facenet-pytorch = "*"
-grpcio-tools = "*"
+black = "*"
 
 [dev-packages]
 
 [requires]
 python_version = "3.8"
+python_full_version = "3.8.0"

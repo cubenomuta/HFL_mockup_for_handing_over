@@ -45,40 +45,60 @@ def set_seed(seed: int):
 
 
 def partitioning(
-    labels: NDArray,
+    train_labels: NDArray,
+    test_labels: NDArray,
     num_parties: int,
     partitions: str,
     seed: int,
     classes: Optional[List[int]] = None,
-    list_labels_idxes: Optional[Dict[int, List[int]]] = None,
+    list_train_labels_idxes: Optional[Dict[int, List[int]]] = None,
+    list_test_labels_idxes: Optional[Dict[int, List[int]]] = None,
 ):
     if partitions == "iid":
-        json_data = create_iid(
-            labels=labels,
+        train_json_data = create_iid(
+            labels=train_labels,
             num_parties=num_parties,
             classes=classes,
-            list_labels_idxes=list_labels_idxes,
+            list_labels_idxes=list_train_labels_idxes,
+        )
+        test_json_data = create_iid(
+            labels=test_labels,
+            num_parties=num_parties,
+            classes=classes,
+            list_labels_idxes=list_test_labels_idxes,
         )
     elif partitions >= "noniid-label1" and partitions <= "noniid-label9":
-        json_data = create_noniid(
-            labels=labels,
+        train_json_data, test_json_data = create_noniid(
+            train_labels=train_labels,
+            test_labels=test_labels,
             num_parties=num_parties,
             num_classes=int(partitions[-1]),
             classes=classes,
-            list_labels_idxes=list_labels_idxes,
+            list_train_labels_idxes=list_train_labels_idxes,
+            list_test_labels_idxes=list_test_labels_idxes,
         )
     elif partitions[:10] == "noniid-dir":
-        json_data, dirichlet_dist = create_noniid_dir(
-            labels=labels,
+        train_json_data, dirichlet_dist = create_noniid_dir(
+            labels=train_labels,
             num_class=10,
             dirichlet_dist=None,
             num_parties=num_parties,
             alpha=float(partitions[10:]),
             seed=seed,
             classes=classes,
-            list_labels_idxes=list_labels_idxes,
+            list_labels_idxes=list_train_labels_idxes,
         )
-    return json_data
+        test_json_data, dirichlet_dist = create_noniid_dir(
+            labels=test_labels,
+            num_class=10,
+            dirichlet_dist=None,
+            num_parties=num_parties,
+            alpha=float(partitions[10:]),
+            seed=seed,
+            classes=classes,
+            list_labels_idxes=list_test_labels_idxes,
+        )
+    return train_json_data, test_json_data
 
 
 def main(args):
@@ -97,14 +117,9 @@ def main(args):
 
     _, y_train, _, y_test = load_numpy_dataset(dataset_name=dataset)
 
-    fog_train_json_data = partitioning(
-        labels=y_train,
-        num_parties=num_fogs,
-        partitions=fog_partitions,
-        seed=seed,
-    )
-    fog_test_json_data = partitioning(
-        labels=y_test,
+    fog_train_json_data, fog_test_json_data = partitioning(
+        train_labels=y_train,
+        test_labels=y_test,
         num_parties=num_fogs,
         partitions=fog_partitions,
         seed=seed,
@@ -118,17 +133,23 @@ def main(args):
     for fid in range(num_fogs):
         print(f"creating partitioning for clients connected with fid {fid}")
         client_train_idxs = fog_train_json_data[fid]
+        client_test_idxs = fog_test_json_data[fid]
         classes = list(np.unique(y_train[client_train_idxs]))
-        list_labels_idxes = {k: [] for k in classes}
+        list_train_labels_idxes = {k: [] for k in classes}
         for idx in client_train_idxs:
-            list_labels_idxes[y_train[idx]].append(idx)
-        train_json_data = partitioning(
-            labels=y_train,
+            list_train_labels_idxes[y_train[idx]].append(idx)
+        list_test_labels_idxes = {k: [] for k in classes}
+        for idx in client_test_idxs:
+            list_test_labels_idxes[y_test[idx]].append(idx)
+        train_json_data, test_json_data = partitioning(
+            train_labels=y_train,
+            test_labels=y_test,
             num_parties=num_clients,
             partitions=client_partitions,
             seed=seed,
             classes=classes,
-            list_labels_idxes=list_labels_idxes,
+            list_train_labels_idxes=list_train_labels_idxes,
+            list_test_labels_idxes=list_test_labels_idxes,
         )
         updatedkey_train_json_data = {
             cid + fid * 100: val for cid, val in train_json_data.items()

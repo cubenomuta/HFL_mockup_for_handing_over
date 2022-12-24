@@ -8,7 +8,7 @@ services:
       dockerfile: ./baseimages/gpu_machine/Dockerfile
       args: 
         - USER=$USER
-    shm_size: "32gb"
+    shm_size: "128gb"
     ports:
       - "8080:8080"
       - "8081:8081"
@@ -18,17 +18,21 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ["0:0","0:1","0:2","0:3","1:0","1:1","1:2","1:3","1:4","1:5","1:6"]
+              device_ids: ['0']
               capabilities: [gpu]
     volumes:
       - ../../shell:/home/$USER/project/shell
       - ../../data:/home/$USER/project/data/
-      - ../../data/CIFAR10/partitions:/home/$USER/project/data/CIFAR10/partitions:ro
-      - ../../data/FashionMNIST/partitions:/home/$USER/project/data/FashionMNIST/partitions:ro
+      - ../../conf:/home/$USER/project/conf/
+      - ../../simulation:/home/$USER/project/simulation/
+      - ../../visualization:/home/$USER/project/visualization/
+      - ../../data/CIFAR10/partitions:/home/$USER/project/data/CIFAR10/partitions
+      - ../../data/FashionMNIST/partitions:/home/$USER/project/data/FashionMNIST/partitions
       - ../../data/MNIST/partitions:/home/$USER/project/data/MNIST/partitions:ro
       - ../../local/:/home/$USER/project/local/
       - ../../src:/home/$USER/project/src/
       - ../../.vscode:/home/$USER/project/.vscode
+      # - /project/user/yamasaki/:/tmp/
     secrets:
       - wandb_api_key
       - gpu_uuid
@@ -42,3 +46,4 @@ secrets:
     file: ../.wandb_api_key
   gpu_uuid:
     file: ../.gpu_uuid
+# device_ids: ["0:0","0:1","0:2","0:3","1:0","1:1","1:2","1:3","1:4","1:5","1:6"]

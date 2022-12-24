@@ -16,7 +16,8 @@ from flwr.common import (
     Scalar,
 )
 from flwr.common.logger import log
-from flwr.server.history import History
+from flwr.server import History
+from server_app.custom_history import CustomHistory
 
 from .fog_manager import FogManager
 from .fog_proxy import FogProxy
@@ -65,7 +66,7 @@ class HFLServer:
     # pylint: disable=too-many-locals
     def fit(self, num_rounds: int, timeout: Optional[float]) -> History:
         """Run federated averaging for a number of rounds."""
-        history = History()
+        history = CustomHistory()
 
         # Initialize parameters
         log(INFO, "Initializing global parameters")
@@ -112,12 +113,16 @@ class HFLServer:
                 )
 
             # Evaluate model on a sample of available fogs
-            # res_fed = self.evaluate_round(server_round=current_round, timeout=timeout)
-            # if res_fed:
-            #     loss_fed, evaluate_metrics_fed, _ = res_fed
-            #     if loss_fed:
-            #         history.add_loss_distributed(server_round=current_round, loss=loss_fed)
-            #         history.add_metrics_distributed(server_round=current_round, metrics=evaluate_metrics_fed)
+            res_fed = self.evaluate_round(server_round=current_round, timeout=timeout)
+            if res_fed:
+                loss_fed, evaluate_metrics_fed, _ = res_fed
+                if loss_fed:
+                    history.add_loss_distributed(
+                        server_round=current_round, loss=loss_fed
+                    )
+                    history.add_metrics_distributed(
+                        server_round=current_round, metrics=evaluate_metrics_fed
+                    )
 
         # Bookkeeping
         end_time = timeit.default_timer()
@@ -150,6 +155,7 @@ class HFLServer:
             len(fog_instructions),
             self._fog_manager.num_available(),
         )
+        self.set_max_workers(len(fog_instructions))
 
         # Collect `evaluate` results from all fogs participating in this round
         results, failures = evaluate_fogs(
@@ -200,6 +206,7 @@ class HFLServer:
             len(fog_instructions),
             self._fog_manager.num_available(),
         )
+        self.set_max_workers(len(fog_instructions))
 
         # Collect `fit` results from all fogs participating in this round
         results, failures = fit_fogs(
@@ -222,7 +229,8 @@ class HFLServer:
         ] = self.strategy.aggregate_fit(server_round, results, failures)
 
         parameters_aggregated, metrics_aggregated = aggregated_result
-        return parameters_aggregated, metrics_aggregated, (results, failures)
+
+        return parameters_aggregated, metrics_aggregated, ()
 
     def disconnect_all_fogs(self, timeout: Optional[float]) -> None:
         """Send shutdown signal to all fogs."""

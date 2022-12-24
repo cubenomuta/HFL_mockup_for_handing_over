@@ -94,6 +94,7 @@ class CustomServer(Server):
                     timeit.default_timer() - start_time,
                 )
                 timestamps_cen["eval_round"] = timeit.default_timer() - start_time
+
             history.add_timestamps_centralized(
                 server_round=current_round, timestamps=timestamps_cen
             )

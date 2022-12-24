@@ -22,8 +22,9 @@ import flwr.common as common
 from flwr.common import serde
 from flwr.common.logger import log
 from flwr.proto.transport_pb2 import ClientMessage, ServerMessage
-from hfl_app.fog_proxy import FogProxy
-from hfl_app.grpc_server.grpc_bridge import GRPCBridge, InsWrapper, ResWrapper
+
+from ..fog_proxy import FogProxy
+from .grpc_bridge import GRPCBridge, InsWrapper, ResWrapper
 
 
 class GrpcFogProxy(FogProxy):
@@ -51,7 +52,9 @@ class GrpcFogProxy(FogProxy):
             )
         )
         fog_msg: ClientMessage = res_wrapper.fog_message
-        get_properties_res = serde.get_properties_res_from_proto(fog_msg.get_properties_res)
+        get_properties_res = serde.get_properties_res_from_proto(
+            fog_msg.get_properties_res
+        )
         return get_properties_res
 
     def get_parameters(
@@ -68,7 +71,9 @@ class GrpcFogProxy(FogProxy):
             )
         )
         fog_msg: ClientMessage = res_wrapper.fog_message
-        get_parameters_res = serde.get_parameters_res_from_proto(fog_msg.get_parameters_res)
+        get_parameters_res = serde.get_parameters_res_from_proto(
+            fog_msg.get_parameters_res
+        )
         return get_parameters_res
 
     def fit(
@@ -105,7 +110,12 @@ class GrpcFogProxy(FogProxy):
                 timeout=timeout,
             )
         )
-        log(DEBUG, "fid %s evaluate and communciation took %s", self.fid, timeit.default_timer() - start_time)
+        log(
+            DEBUG,
+            "fid %s evaluate and communciation took %s",
+            self.fid,
+            timeit.default_timer() - start_time,
+        )
         fog_msg: ClientMessage = res_wrapper.fog_message
         evaluate_res = serde.evaluate_res_from_proto(fog_msg.evaluate_res)
         return evaluate_res

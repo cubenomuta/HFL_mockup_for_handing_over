@@ -2,8 +2,9 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Tuple, Union
 
 from flwr.common import EvaluateIns, EvaluateRes, FitIns, FitRes, Parameters, Scalar
-from hfl_app.fog_manager import FogManager
-from hfl_app.fog_proxy import FogProxy
+
+from ..fog_manager import FogManager
+from ..fog_proxy import FogProxy
 
 
 class Strategy(ABC):
@@ -133,7 +134,9 @@ class Strategy(ABC):
         """
 
     @abstractmethod
-    def evaluate(self, server_round: int, parameters: Parameters) -> Optional[Tuple[float, Dict[str, Scalar]]]:
+    def evaluate(
+        self, server_round: int, parameters: Parameters
+    ) -> Optional[Tuple[float, Dict[str, Scalar]]]:
         """Evaluate the current model parameters.
         This function can be used to perform centralized (i.e., server-side) evaluation
         of model parameters.

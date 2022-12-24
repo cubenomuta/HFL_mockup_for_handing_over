@@ -5,9 +5,9 @@ from typing import Callable, Iterator
 import grpc
 from flwr.proto.transport_pb2 import ClientMessage, ServerMessage
 from flwr.proto.transport_pb2_grpc import FlowerServiceServicer
-from hfl_app.fog_manager import FogManager
 from iterators import TimeoutIterator
 
+from ..fog_manager import FogManager
 from .grpc_bridge import GRPCBridge, InsWrapper, ResWrapper
 from .grpc_fog_proxy import GrpcFogProxy
 
@@ -48,7 +48,9 @@ class FlowerServiceServicer(FlowerServiceServicer):
         self,
         fog_manager: FogManager,
         grpc_bridge_factory: Callable[[], GRPCBridge] = default_bridge_factory,
-        grpc_fog_factory: Callable[[str, GRPCBridge], GrpcFogProxy] = default_grpc_fog_factory,
+        grpc_fog_factory: Callable[
+            [str, GRPCBridge], GrpcFogProxy
+        ] = default_grpc_fog_factory,
     ) -> None:
         self.fog_manager: FogManager = fog_manager
         self.grpc_bridge_factory = grpc_bridge_factory
@@ -74,7 +76,9 @@ class FlowerServiceServicer(FlowerServiceServicer):
 
         if is_success:
             # Get iterators
-            fog_message_iterator = TimeoutIterator(iterator=request_iterator, reset_on_next=True)
+            fog_message_iterator = TimeoutIterator(
+                iterator=request_iterator, reset_on_next=True
+            )
             ins_wrapper_iterator = bridge.ins_wrapper_iterator()
 
             # All messages will be pushed to fog bridge directly
@@ -108,6 +112,8 @@ class FlowerServiceServicer(FlowerServiceServicer):
                         # this execution context by raising an exception.
                         return
 
-                    bridge.set_res_wrapper(res_wrapper=ResWrapper(fog_message=fog_message))
+                    bridge.set_res_wrapper(
+                        res_wrapper=ResWrapper(fog_message=fog_message)
+                    )
                 except StopIteration:
                     break

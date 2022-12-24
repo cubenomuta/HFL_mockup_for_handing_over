@@ -5,8 +5,10 @@ from .centralized_dataset import (
 from .federated_dataset import (
     CIFAR10_truncated,
     CIFAR100_truncated,
+    FashionMNIST_truncated,
     FederatedCelebaVerification,
     FederatedUsbcamVerification,
+    MNIST_truncated,
 )
 
 __all__ = [
@@ -14,6 +16,8 @@ __all__ = [
     "CentralizedCelebaAndUsbcamVerification",
     "CIFAR10_truncated",
     "CIFAR100_truncated",
+    "FashionMNIST_truncated",
+    "MNIST_truncated",
     "FederatedCelebaVerification",
     "FederatedUsbcamVerification",
 ]

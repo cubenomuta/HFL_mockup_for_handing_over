@@ -1,20 +1,20 @@
-import json
 import os
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-import numpy as np
 from dataset_app import (
     CentralizedCelebaAndUsbcamVerification,
     CentralizedCelebaVerification,
     CIFAR10_truncated,
     CIFAR100_truncated,
+    FashionMNIST_truncated,
     FederatedCelebaVerification,
     FederatedUsbcamVerification,
+    MNIST_truncated,
 )
 from flwr.common import Scalar
 from torch.utils.data import Dataset, random_split
-from torchvision.datasets import CIFAR10, CIFAR100
+from torchvision.datasets import CIFAR10, CIFAR100, FashionMNIST
 from torchvision.transforms import transforms
 
 DATA_ROOT = Path(os.environ["DATA_ROOT"])
@@ -23,7 +23,35 @@ DATA_ROOT = Path(os.environ["DATA_ROOT"])
 def load_centralized_dataset(
     dataset_name: str, train: bool = True, target: str = None, download: bool = False
 ) -> Dataset:
-    if dataset_name == "CIFAR10":
+    if dataset_name == "MNIST":
+        transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    (0.5,),
+                    (0.5,),
+                ),
+            ]
+        )
+        root = DATA_ROOT
+        dataset = FashionMNIST(
+            root=root, train=train, transform=transform, download=download
+        )
+    elif dataset_name == "FashionMNIST":
+        transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    (0.5,),
+                    (0.5,),
+                ),
+            ]
+        )
+        root = DATA_ROOT
+        dataset = FashionMNIST(
+            root=root, train=train, transform=transform, download=download
+        )
+    elif dataset_name == "CIFAR10":
         transform = transforms.Compose(
             [
                 transforms.ToTensor(),
@@ -70,7 +98,45 @@ def load_federated_dataset(
     attribute: str = None,
     download: bool = False,
 ) -> Dataset:
-    if dataset_name == "CIFAR10":
+    if dataset_name == "MNIST":
+        transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    (0.5,),
+                    (0.5,),
+                ),
+            ]
+        )
+        dataset = MNIST_truncated(
+            root=DATA_ROOT,
+            id=id,
+            train=train,
+            target=target,
+            attribute=attribute,
+            transform=transform,
+            download=download,
+        )
+    elif dataset_name == "FashionMNIST":
+        transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    (0.5,),
+                    (0.5,),
+                ),
+            ]
+        )
+        dataset = FashionMNIST_truncated(
+            root=DATA_ROOT,
+            id=id,
+            train=train,
+            target=target,
+            attribute=attribute,
+            transform=transform,
+            download=download,
+        )
+    elif dataset_name == "CIFAR10":
         transform = transforms.Compose(
             [
                 transforms.ToTensor(),
@@ -119,7 +185,13 @@ def load_federated_dataset(
 
 
 def configure_dataset(dataset_name: str, target: str = None) -> Dict[str, Scalar]:
-    if dataset_name == "CIFAR10":
+    if dataset_name == "MNIST":
+        input_spec = (1, 28, 28)
+        out_dims = 10
+    elif dataset_name == "FashionMNIST":
+        input_spec = (1, 28, 28)
+        out_dims = 10
+    elif dataset_name == "CIFAR10":
         input_spec = (3, 32, 32)
         out_dims = 10
     elif (dataset_name == "CelebA") or (dataset_name == "usbcam"):

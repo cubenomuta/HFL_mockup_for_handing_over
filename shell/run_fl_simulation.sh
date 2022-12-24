@@ -11,12 +11,12 @@ fi
 
 # fl configuration
 strategy="FML"
-server_model="GNResNet18"
-client_model="GNResNet18"
+server_model="tinyCNN"
+client_model="tinyCNN"
 dataset="CIFAR10"
-target="iid_iid"
-num_rounds=2
-num_clients=10
+target=$1 #"iid_iid"
+num_rounds=500
+num_clients=1000
 fraction_fit=1
 
 # fit configuration
@@ -24,7 +24,7 @@ yaml_path="./conf/${dataset}/${strategy}_${server_model}_${client_model}/fit_con
 seed=1234
 
 time=`date '+%Y%m%d%H%M'`
-exp_dir="./simulation/${dataset}/${strategy}_${server_model}_${client_model}/"${target}"/run_${time}"
+exp_dir="./simulation/${dataset}/${target}/${strategy}_${server_model}_${client_model}/run_${time}"
 
 if [ ! -e "${exp_dir}" ]; then
     mkdir -p "${exp_dir}/logs/"
@@ -32,7 +32,7 @@ if [ ! -e "${exp_dir}" ]; then
     mkdir -p "${exp_dir}/metrics/"
 fi
 
-ray start --head --min-worker-port 20000 --max-worker-port 29999 --num-cpus 20 --num-gpus 10
+ray start --head --min-worker-port 20000 --max-worker-port 29999 --num-cpus 64
 sleep 1 
 
 python ./local/fl_simulation.py \
@@ -45,11 +45,13 @@ python ./local/fl_simulation.py \
 --num_clients ${num_clients} \
 --fraction_fit ${fraction_fit} \
 --yaml_path ${yaml_path} \
---seed ${seed} &#\
-# 2>"${exp_dir}/logs/flower.log" &
+--save_dir ${exp_dir} \
+--seed ${seed} \
+2>"${exp_dir}/logs/flower.log" &
 
 # This will allow you to use CTRL+C to stop all background processes
 trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM
 # Wait for all background processes to complete
 wait
 ray stop
+rm -rf /tmp/ray

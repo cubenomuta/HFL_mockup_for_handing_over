@@ -1,0 +1,32 @@
+{
+    "iid_iid": {
+        "F2MKD": "F2MKD_tinyCNN_tinyCNN/run_202212160043",
+        "FedFog": "FedFog_tinyCNN_tinyCNN/run_202212160027",
+        "FML": "FML_tinyCNN_tinyCNN/run_202212161517"
+    },
+    "iid_noniid-label2": {
+        "F2MKD": "F2MKD_tinyCNN_tinyCNN/run_202212160528",
+        "FedFog": "FedFog_tinyCNN_tinyCNN/run_202212160320",
+        "FML": "FML_tinyCNN_tinyCNN/run_202212171652"
+    },
+    "iid_noniid-label1": {
+        "F2MKD": "F2MKD_tinyCNN_tinyCNN/run_202212160306",
+        "FedFog": "FedFog_tinyCNN_tinyCNN/run_202212160154",
+        "FML": "FML_tinyCNN_tinyCNN/run_202212171402"
+    },
+    "noniid-label2_iid": {
+        "F2MKD": "F2MKD_tinyCNN_tinyCNN/run_202212160751",
+        "FedFog": "FedFog_tinyCNN_tinyCNN/run_202212160446",
+        "FML": "FML_tinyCNN_tinyCNN/run_202212171942"
+    },
+    "noniid-label2_noniid-label1": {
+        "F2MKD": "F2MKD_tinyCNN_tinyCNN/run_202212161014",
+        "FedFog": "FedFog_tinyCNN_tinyCNN/run_202212160612",
+        "FML": "FML_tinyCNN_tinyCNN/run_202212172232"
+    },
+    "noniid-label1_iid": {
+        "F2MKD": "F2MKD_tinyCNN_tinyCNN/run_202212161237",
+        "FedFog": "FedFog_tinyCNN_tinyCNN/run_202212160738",
+        "FML": "FML_tinyCNN_tinyCNN/run_202212180122"
+    }
+}

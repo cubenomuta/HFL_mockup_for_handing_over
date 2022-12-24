@@ -9,31 +9,29 @@
 # server_address=${args[1]}
 # cid=${args[3]}
 
-cid=$CID
-# if [ ${cid} -gt 4 ]; then
+# cid=$CID
+cid=$1
+if [ ${cid} -gt 4 ]; then
+server_address="172.18.0.2:8082"
 # server_address="133.11.194.40:8082"
-# else
+else
+server_address="172.18.0.2:8081"
 # server_address="133.11.194.40:8081"
-# fi    
-server_address="133.11.194.40:8080"
+fi    
+# server_address="133.11.194.40:8080"
 
 # fl_configuration
-strategy="FedAvg"
-server_model="GNResNet18"
-client_model="GNResNet18"
-dataset="CIFAR10"
+strategy="FedFog"
+server_model="tinyCNN"
+client_model="tinyCNN"
+dataset="FashionMNIST"
 target="iid_iid"
-num_clients=5
 
 # fit configuration
-batch_size=10
-local_epochs=1
-lr=0.05
-
 seed=1234
 
 time=`date '+%Y%m%d%H%M'`
-exp_dir="./exp/${dataset}/${strategy}_${model}/"${target}"/run_${time}"
+exp_dir="./exp/${dataset}/${target}/${strategy}_${server_model}_${client_model}/run_${time}"
 
 if [ ! -e "${exp_dir}" ]; then
     mkdir -p "${exp_dir}/logs/"

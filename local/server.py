@@ -180,7 +180,11 @@ def main():
     )
 
     # Start Flower server for four rounds of federated learning
-    # start_server(server_address=args.server_address, config=server_config, strategy=strategy)
+    start_server(
+        server_address=args.server_address,
+        server=server,
+        config=server_config,
+    )
     # Save results
     save_path = Path(args.save_dir) / "config.yaml"
     config = vars(args)

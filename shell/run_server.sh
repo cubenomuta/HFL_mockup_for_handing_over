@@ -9,15 +9,15 @@ done
 server_address=${args[1]}
 
 # fl configuration
-strategy="FedAvg"
+strategy="FML"
 server_model="GNResNet18"
-client_model="GNResNet18"
+client_model="tinyCNN"
 dataset="CIFAR10"
 target="iid_iid"
 save_model=0
 
 # fl configuration
-num_rounds=2
+num_rounds=10
 num_clients=10
 
 # fit configuration

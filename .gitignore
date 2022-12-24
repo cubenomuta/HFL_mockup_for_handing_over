@@ -1,11 +1,12 @@
 /.devcontainer/.wandb_api_key
 /.devcontainer/.gpu_uuid
+/.venv
 /data/*/raw
 /data/usbcam
-/res
+/simulation
 /exp
-/wandb
-/local/test.py
+/shell/liver.sh
+/shell/rump.sh
 Pipfile.lock
 setup_pi.sh
 *.tar

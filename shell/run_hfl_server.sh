@@ -8,30 +8,23 @@ args+=($arg)
 done
 server_address=${args[1]}
 
-dataset="CIFAR10"
-target="iid"
-model="GNResNet18"
-pretrained="None"
-save_model=0
-
 # fl configuration
-strategy="FedAvg"
-num_rounds=2
-num_clients=2
+strategy="F2MKD"
+server_model="tinyCNN"
+client_model="tinyCNN"
+dataset="FashionMNIST"
+target="iid_iid"
+num_rounds=10
 num_fogs=2
+num_clients=10
+fraction_fit=1
 
 # fit configuration
-batch_size=4
-local_epochs=1
-lr=0.005
-weight_decay=1e-4
-scale=32.0
-margin=0.1
-
+yaml_path="./conf/${dataset}/${strategy}_${server_model}_${client_model}/fit_config.yaml"
 seed=1234
 
 time=`date '+%Y%m%d%H%M'`
-exp_dir="./exp/${dataset}/${strategy}_${model}/"${target}"/run_${time}"
+exp_dir="./exp/${dataset}/${target}/${strategy}_${server_model}_${client_model}/run_${time}"
 
 if [ ! -e "${exp_dir}" ]; then
     mkdir -p "${exp_dir}/logs/"
@@ -40,15 +33,16 @@ if [ ! -e "${exp_dir}" ]; then
 fi
 
 python ./local/hfl_server.py --server_address ${server_address} \
---num_rounds ${num_rounds} \
---num_fogs ${num_fogs} \
+--strategy ${strategy} \
+--server_model ${server_model} \
+--client_model ${client_model} \
 --dataset ${dataset} \
 --target ${target} \
---model ${model} \
---local_epochs ${local_epochs} \
---batch_size ${batch_size} \
---lr ${lr} \
---weight_decay ${weight_decay} \
+--num_rounds ${num_rounds} \
+--num_clients ${num_clients} \
+--num_fogs ${num_fogs} \
+--fraction_fit ${fraction_fit} \
+--yaml_path ${yaml_path} \
 --save_dir ${exp_dir} \
 --seed ${seed} &
 # 2>"${exp_dir}/logs/server_flower.log" &

@@ -34,9 +34,9 @@ from flwr.common import (
 )
 from flwr.common.logger import log
 from flwr.server.strategy.aggregate import aggregate, weighted_loss_avg
-from hfl_app.fog_manager import FogManager
-from hfl_app.fog_proxy import FogProxy
 
+from ..fog_manager import FogManager
+from ..fog_proxy import FogProxy
 from .strategy import Strategy
 
 WARNING_MIN_AVAILABLE_CLIENTS_TOO_LOW = """
@@ -145,7 +145,9 @@ class FedAvg(Strategy):
         self.initial_parameters = None  # Don't keep initial parameters in memory
         return initial_parameters
 
-    def evaluate(self, server_round: int, parameters: Parameters) -> Optional[Tuple[float, Dict[str, Scalar]]]:
+    def evaluate(
+        self, server_round: int, parameters: Parameters
+    ) -> Optional[Tuple[float, Dict[str, Scalar]]]:
         """Evaluate model parameters using an evaluation function."""
         if self.evaluate_fn is None:
             # No evaluation function provided
@@ -190,7 +192,9 @@ class FedAvg(Strategy):
         evaluate_ins = EvaluateIns(parameters, config)
 
         # Sample fogs
-        sample_size, min_num_fogs = self.num_evaluation_fogs(fog_manager.num_available())
+        sample_size, min_num_fogs = self.num_evaluation_fogs(
+            fog_manager.num_available()
+        )
         fogs = fog_manager.sample(num_fogs=sample_size, min_num_fogs=min_num_fogs)
 
         # Return fog/config pairs
@@ -211,9 +215,11 @@ class FedAvg(Strategy):
 
         # Convert results
         weights_results = [
-            (parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples) for _, fit_res in results
+            (parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples)
+            for _, fit_res in results
         ]
         parameters_aggregated = ndarrays_to_parameters(aggregate(weights_results))
+        del weights_results[:]
 
         # Aggregate custom metrics if aggregation fn was provided
         metrics_aggregated = {}
@@ -240,7 +246,10 @@ class FedAvg(Strategy):
 
         # Aggregate loss
         loss_aggregated = weighted_loss_avg(
-            [(evaluate_res.num_examples, evaluate_res.loss) for _, evaluate_res in results]
+            [
+                (evaluate_res.num_examples, evaluate_res.loss)
+                for _, evaluate_res in results
+            ]
         )
 
         # Aggregate custom metrics if aggregation fn was provided

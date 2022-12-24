@@ -28,7 +28,7 @@ parser.add_argument(
     "--strategy",
     type=str,
     required=True,
-    choices=["FedAvg", "FML"],
+    choices=["FedAvg", "FML", "FedFog", "F2MKD"],
     help="FL config: aggregation strategy",
 )
 parser.add_argument(

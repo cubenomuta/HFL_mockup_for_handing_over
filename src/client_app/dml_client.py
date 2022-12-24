@@ -1,8 +1,9 @@
 from typing import Any, Dict, Optional
 
-import ray
 from flwr.common import (
     Code,
+    EvaluateIns,
+    EvaluateRes,
     FitIns,
     FitRes,
     NDArrays,
@@ -12,7 +13,7 @@ from flwr.common import (
     parameters_to_ndarrays,
 )
 from models.base_model import Net
-from models.driver import train
+from models.driver import test
 from models.knowledge_distillation import mutual_train
 from torch.utils.data import DataLoader
 from utils.utils_model import load_model
@@ -26,7 +27,7 @@ class FlowerDMLClient(FlowerClient):
         self.meme: Net = load_model(
             name=self.server_model,
             input_spec=self.dataset_config["input_spec"],
-            out_dims=self.dataset_config,
+            out_dims=self.dataset_config["out_dims"],
         )
 
     def fit(self, ins: FitIns) -> FitRes:
@@ -96,14 +97,10 @@ class FlowerRayDMLClient(FlowerClient):
         self.meme.set_weights(weights)
 
         # dataset configuration train / validation
-        num_workers = int(ray.get_runtime_context().get_assigned_resources()["CPU"])
         trainloader = DataLoader(
             self.trainset,
             batch_size=batch_size,
-            num_workers=num_workers,
-            pin_memory=True,
             shuffle=True,
-            drop_last=True,
         )
 
         mutual_train(
@@ -114,6 +111,7 @@ class FlowerRayDMLClient(FlowerClient):
             lr=lr,
             alpha=alpha,
             beta=beta,
+            weight_decay=weight_decay,
             device=self.device,
         )
         parameters_prime: Parameters = ndarrays_to_parameters(self.meme.get_weights())
@@ -127,4 +125,27 @@ class FlowerRayDMLClient(FlowerClient):
                 metrics={},
             ),
             parameters_dual,
+        )
+
+    def evaluate(self, ins: EvaluateIns) -> EvaluateRes:
+        # unwrapping EvaluateIns
+        batch_size: int = int(ins.config["batch_size"])
+
+        # num_workers = int(ray.get_runtime_context().get_assigned_resources()["CPU"])
+        testloader = DataLoader(
+            dataset=self.testset,
+            batch_size=batch_size,
+            shuffle=False,
+        )
+        result = test(net=self.net, testloader=testloader, device=self.device)
+        metrics = {
+            "acc": float(result["acc"]),
+            "loss": float(result["loss"]),
+            "cid": int(self.cid),
+        }
+        return EvaluateRes(
+            status=Status(Code.OK, message="Success evaluate"),
+            loss=float(result["loss"]),
+            num_examples=len(self.testset),
+            metrics=metrics,
         )

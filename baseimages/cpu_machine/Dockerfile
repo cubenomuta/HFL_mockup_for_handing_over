@@ -36,7 +36,10 @@ libxml2-dev \
 libxmlsec1-dev \
 libffi-dev \
 liblzma-dev \
-python3-distutils
+python3-distutils \
+fontconfig
+RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections
+RUN apt-get update && apt-get install -y --no-install-recommends ttf-mscorefonts-installer
 
 ARG USER
 ENV USER=${USER}
@@ -46,20 +49,23 @@ ENV HOME=/home/${USER}
 WORKDIR ${HOME}/project
 ENTRYPOINT [ "./shell/entrypoint.sh" ]
 
-RUN git clone https://github.com/pyenv/pyenv.git ~/.pyenv
+RUN git clone https://github.com/pyenv/pyenv.git ${HOME}/.pyenv
 
 ENV PYENV_ROOT ${HOME}/.pyenv
-ENV PATH $PYENV_ROOT/bin:$PATH
-ENV PATH $PYENV_ROOT/shims:$PATH
+ENV PATH ${PYENV_ROOT}/bin:$PATH
+ENV PATH ${PYENV_ROOT}/shims:$PATH
 
 RUN eval "$(pyenv init -)" && pyenv install 3.8.0 && pyenv global 3.8.0
 RUN pip install pipenv
 
-RUN pipenv install --python 3.8.0
+RUN PIPENV_VENV_IN_PROJECT=1 pipenv install --python 3.8.0 
 RUN pipenv install https://download.pytorch.org/whl/cpu/torch-1.12.0%2Bcpu-cp38-cp38-linux_x86_64.whl --skip-lock && \
 pipenv install https://download.pytorch.org/whl/cpu/torchvision-0.13.0%2Bcpu-cp38-cp38-linux_x86_64.whl --skip-lock && \
 pipenv install flwr==1.1.0 --skip-lock && \
 pipenv install tqdm --skip-lock && \
+pipenv install ray==2.1.0 --skip-lock && \
+pipenv install pandas --skip-lock && \
 pipenv install matplotlib --skip-lock && \
 pipenv install wandb --skip-lock && \
+pipenv install black && \
 pipenv lock

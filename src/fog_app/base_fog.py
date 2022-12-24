@@ -1,4 +1,5 @@
 from logging import DEBUG, INFO
+from random import shuffle
 from typing import Dict, List, Optional, Tuple, Union
 
 from flwr.common import (
@@ -14,7 +15,7 @@ from flwr.common import (
 from flwr.common.logger import log
 from flwr.server import ClientManager, Server
 from flwr.server.client_proxy import ClientProxy
-from flwr.server.server import fit_clients
+from flwr.server.server import evaluate_clients, fit_clients
 from flwr.server.strategy import Strategy
 from utils.utils_dataset import load_federated_dataset
 
@@ -40,6 +41,7 @@ class FlowerFog(Server, Fog):
         )
         self.fid = fid
         self.attribute = "fog"
+        self.config = config
 
         # dataset configuration
         self.target = config["target_name"]
@@ -111,11 +113,49 @@ class FlowerFog(Server, Fog):
 
     def evaluate(self, ins: EvaluateIns) -> EvaluateRes:
         server_round: int = int(ins.config["server_round"])
-        res_eval = self.evaluate_round(server_round=server_round)
-        loss_aggregated, metrics_aggregated, _ = res_eval
+
+        client_instructions = self.strategy.configure_evaluate(
+            server_round=server_round,
+            parameters=None,
+            ins=ins,
+            client_manager=self._client_manager,
+        )
+        if not client_instructions:
+            log(INFO, "evaluate_round %s: no clients selected, cancel", server_round)
+            return None
+        log(
+            DEBUG,
+            "evaluate_round %s: strategy sampled %s clients (out of %s)",
+            server_round,
+            len(client_instructions),
+            self._client_manager.num_available(),
+        )
+
+        # Collect `evaluate` results from all clients participating in this round
+        results, failures = evaluate_clients(
+            client_instructions,
+            max_workers=self.max_workers,
+            timeout=None,
+        )
+        log(
+            DEBUG,
+            "evaluate_round %s received %s results and %s failures",
+            server_round,
+            len(results),
+            len(failures),
+        )
+
+        # Aggregate the evaluation results
+        aggregated_result: Tuple[
+            Optional[float],
+            Dict[str, Scalar],
+        ] = self.strategy.aggregate_evaluate(server_round, results, failures)
+
+        loss_aggregated, metrics_aggregated = aggregated_result
+
         return EvaluateRes(
-            Status(Code.OK),
+            Status(Code.OK, message="Success evaluate"),
             loss=float(loss_aggregated),
-            num_examples=metrics_aggregated["num_examples"],
-            metrics={"accuracy": metrics_aggregated["accuracy"]},
+            num_examples=int(ins.config["batch_size"]),
+            metrics=metrics_aggregated,
         )

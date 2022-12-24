@@ -24,8 +24,8 @@ import grpc
 from flwr.common import GRPC_MAX_MESSAGE_LENGTH
 from flwr.common.logger import log
 from flwr.proto.transport_pb2_grpc import add_FlowerServiceServicer_to_server
-from hfl_app.fog_manager import FogManager
 
+from ..fog_manager import FogManager
 from .flower_service_servicer import FlowerServiceServicer
 
 INVALID_CERTIFICATES_ERR_MSG = """
@@ -36,7 +36,10 @@ INVALID_CERTIFICATES_ERR_MSG = """
 
 def valid_certificates(certificates: Tuple[bytes, bytes, bytes]) -> bool:
     """Validate certificates tuple."""
-    is_valid = all(isinstance(certificate, bytes) for certificate in certificates) and len(certificates) == 3
+    is_valid = (
+        all(isinstance(certificate, bytes) for certificate in certificates)
+        and len(certificates) == 3
+    )
 
     if not is_valid:
         log(ERROR, INVALID_CERTIFICATES_ERR_MSG)
