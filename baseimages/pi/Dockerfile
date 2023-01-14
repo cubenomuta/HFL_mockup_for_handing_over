@@ -8,6 +8,7 @@ ENV LANGUAGE en_US:en_US
 ENV LC_ALL en_US.UTF-8
 
 RUN apt-get clean && apt-get update && apt-get install -y iputils-ping \
+iperf3 \
 net-tools \
 dnsutils \
 tmux \
@@ -57,11 +58,12 @@ ENV PATH $PYENV_ROOT/shims:$PATH
 RUN eval "$(pyenv init -)" && pyenv install 3.8.0 && pyenv global 3.8.0
 RUN pip install pipenv
 
-RUN pipenv install --python 3.8.0 
+RUN PIPENV_VENV_IN_PROJECT=1 pipenv install --python 3.8.0 
 RUN pipenv install http://download.pytorch.org/whl/cpu/torch-1.12.0-cp38-cp38-manylinux2014_aarch64.whl --skip-lock && \
 pipenv install http://download.pytorch.org/whl/cpu/torchvision-0.13.0-cp38-cp38-manylinux2014_aarch64.whl --skip-lock && \
 pipenv install flwr==1.0.0 --skip-lock && \
 pipenv install tqdm --skip-lock && \
+pipenv install ray --skip-lock && \
 pipenv install matplotlib --skip-lock && \
 pipenv install scikit-image && \
 pipenv install opencv-python==4.6.0.66 --skip-lock && \

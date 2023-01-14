@@ -9,22 +9,22 @@
 # server_address=${args[1]}
 # cid=${args[3]}
 
-# cid=$CID
-cid=$1
+cid=$CID
+# cid=$1
 if [ ${cid} -gt 4 ]; then
-server_address="172.18.0.2:8082"
-# server_address="133.11.194.40:8082"
+# server_address="172.18.0.2:8082"
+server_address="133.11.194.40:8082"
 else
-server_address="172.18.0.2:8081"
-# server_address="133.11.194.40:8081"
+# server_address="172.18.0.2:8081"
+server_address="133.11.194.40:8081"
 fi    
-# server_address="133.11.194.40:8080"
+server_address="20.78.91.146:8080"
 
 # fl_configuration
 strategy="FedFog"
 server_model="tinyCNN"
 client_model="tinyCNN"
-dataset="FashionMNIST"
+dataset="CIFAR10"
 target="iid_iid"
 
 # fit configuration

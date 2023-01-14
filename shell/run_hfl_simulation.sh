@@ -10,12 +10,12 @@ done < ${CUDA_VISIBLE_DEVICES_FILE}
 fi
 
 # fl configuration
-strategy=F2MKD
-server_model="GNResNet18"
+strategy="F2MKD"
+server_model="tinyCNN"
 client_model="tinyCNN"
-dataset="CIFAR10"
-target="iid_iid"
-num_rounds=5
+dataset="FashionMNIST"
+target=$1
+num_rounds=500
 num_fogs=10
 num_clients=100
 fraction_fit=1
@@ -33,7 +33,7 @@ if [ ! -e "${exp_dir}" ]; then
     mkdir -p "${exp_dir}/metrics/"
 fi
 
-ray start --head --min-worker-port 20000 --max-worker-port 29999 --num-cpus 96
+ray start --head --min-worker-port 20000 --max-worker-port 29999 --num-cpus $2
 sleep 1 
 
 python ./local/hfl_simulation.py \

@@ -6,16 +6,16 @@ args=()
 for arg in $@; do
 args+=($arg)
 done
-# server_address=20.78.91.146:8080
-server_address=172.18.0.2:8080
+server_address=20.78.91.146:8080
+# server_address=172.18.0.2:8080
 fog_address=$1
 fid=$2
 
 # fl configuration
-strategy="F2MKD"
+strategy="FedFog"
 server_model="tinyCNN"
 client_model="tinyCNN"
-dataset="FashionMNIST"
+dataset="CIFAR10"
 target="iid_iid"
 num_clients=5
 fraction_fit=1

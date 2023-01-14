@@ -2,31 +2,37 @@
     "iid_iid": {
         "F2MKD": "F2MKD_tinyCNN_tinyCNN/run_202212200136",
         "FedFog": "FedFog_tinyCNN_tinyCNN/run_202212191800",
-        "FML": "FML_tinyCNN_tinyCNN/run_202212211858"
+        "FML": "FML_tinyCNN_tinyCNN/run_202212211858",
+        "F2MKD_GNResNet": "F2MKD_GNResNet18_tinyCNN/run_202212241217"
     },
     "iid_noniid-label2": {
         "F2MKD": "F2MKD_tinyCNN_tinyCNN/run_202212221039",
         "FedFog": "FedFog_tinyCNN_tinyCNN/run_202212200623",
-        "FML": "FML_tinyCNN_tinyCNN/run_202212221254"
+        "FML": "FML_tinyCNN_tinyCNN/run_202212221254",
+        "F2MKD_GNResNet": "F2MKD_GNResNet18_tinyCNN/run_202212311431"
     },
     "iid_noniid-label1": {
         "F2MKD": "F2MKD_tinyCNN_tinyCNN/run_202212201011",
         "FedFog": "FedFog_tinyCNN_tinyCNN/run_202212200138",
-        "FML": "FML_tinyCNN_tinyCNN/run_202212220356"
+        "FML": "FML_tinyCNN_tinyCNN/run_202212220356",
+        "F2MKD_GNResNet": "F2MKD_GNResNet18_tinyCNN/run_202212250230"
     },
     "noniid-label2_iid": {
         "F2MKD": "F2MKD_tinyCNN_tinyCNN/run_202212221913",
         "FedFog": "FedFog_tinyCNN_tinyCNN/run_202212201109",
-        "FML": "FML_tinyCNN_tinyCNN/run_202212222153"
+        "FML": "FML_tinyCNN_tinyCNN/run_202212222153",
+        "F2MKD_GNResNet": "F2MKD_GNResNet18_tinyCNN/run_202301010456"
     },
     "noniid-label2_noniid-label1": {
         "F2MKD": "F2MKD_tinyCNN_tinyCNN/run_202212230351",
         "FedFog": "FedFog_tinyCNN_tinyCNN/run_202212201553",
-        "FML": "FML_tinyCNN_tinyCNN/run_202212230653"
+        "FML": "FML_tinyCNN_tinyCNN/run_202212230653",
+        "F2MKD_GNResNet": "F2MKD_GNResNet18_tinyCNN/run_202301011908"
     },
     "noniid-label1_iid": {
         "F2MKD": "F2MKD_tinyCNN_tinyCNN/run_202212231224",
         "FedFog": "FedFog_tinyCNN_tinyCNN/run_202212202040",
-        "FML": "FML_tinyCNN_tinyCNN/run_202212231552"
+        "FML": "FML_tinyCNN_tinyCNN/run_202212231552",
+        "F2MKD_GNResNet": "F2MKD_GNResNet18_tinyCNN/run_202301020926"
     }
 }
