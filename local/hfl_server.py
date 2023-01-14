@@ -5,6 +5,7 @@ import os
 import random
 import warnings
 from pathlib import Path
+from time import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -173,20 +174,41 @@ def main():
 
         return evaluate
 
-    def evaluate_metrics_server_aggregation_fn(
-        eval_metrics: List[Tuple[int, Dict[str, Any]]]
+    # def evaluate_metrics_server_aggregation_fn(
+    #     eval_metrics: List[Tuple[int, Dict[str, Any]]]
+    # ):
+    #     accuracy_summary = np.array(
+    #         [metrics["accuracy_mean"] for _, metrics in eval_metrics]
+    #     )
+    #     loss_summary = np.array([metrics["loss_mean"] for _, metrics in eval_metrics])
+    #     metrics_aggregated = {
+    #         "accuracy_mean": float(accuracy_summary.mean()),
+    #         "accuracy_std": float(accuracy_summary.std()),
+    #         "loss_mean": float(loss_summary.mean()),
+    #         "loss_std": float(loss_summary.std()),
+    #     }
+    #     return metrics_aggregated
+    def fit_metrics_aggregation_fn(
+        fit_metrics: List[Tuple[int, Dict[str, Any]]],
     ):
-        accuracy_summary = np.array(
-            [metrics["accuracy_mean"] for _, metrics in eval_metrics]
-        )
-        loss_summary = np.array([metrics["loss_mean"] for _, metrics in eval_metrics])
-        metrics_aggregated = {
-            "accuracy_mean": float(accuracy_summary.mean()),
-            "accuracy_std": float(accuracy_summary.std()),
-            "loss_mean": float(loss_summary.mean()),
-            "loss_std": float(loss_summary.std()),
-        }
-        return metrics_aggregated
+        timestamps_aggregated = {}
+        for _, metrics in fit_metrics:
+            fid = metrics["fid"]
+            timestamps_aggregated[fid] = {}
+            timestamps_aggregated[fid]["comm"] = metrics["total"] - metrics["fit_total"]
+            timestamps_aggregated[fid]["comp"] = metrics["comp"]
+            for key in metrics:
+                if "ipv4" in key and "comm" in key:
+                    cid = key[:-5]
+                    if cid not in timestamps_aggregated:
+                        timestamps_aggregated[cid] = {}
+                    timestamps_aggregated[cid]["comm"]
+                elif "ipv4" in key and "comm" in key:
+                    cid = key[:-5]
+                    if cid not in timestamps_aggregated:
+                        timestamps_aggregated[cid] = {}
+                    timestamps_aggregated[cid]["comm"]
+        return timestamps_aggregated
 
     # Create strategy
     strategy = FedAvg(
@@ -198,6 +220,7 @@ def main():
         evaluate_fn=get_eval_fn(server_net, args.dataset, args.target),
         on_fit_config_fn=fit_config,
         on_evaluate_config_fn=eval_config,
+        fit_metrics_aggregation_fn=fit_metrics_aggregation_fn,
         initial_parameters=server_init_parameters,
     )
     fog_manager = SimpleFogManager()
@@ -212,6 +235,23 @@ def main():
         config=server_config,
     )
 
+    # Save results
+    save_path = Path(args.save_dir) / "config.yaml"
+    config = vars(args)
+    config.update(fit_parameter_config)
+    with open(save_path, "w") as outfile:
+        yaml.dump(config, outfile)
+    with open(save_path, "w") as outfile:
+        yaml.dump(config, outfile)
+    save_path = Path(args.save_dir) / "metrics" / "timestamps_federated.json"
+    with open(save_path, "w") as outfile:
+        json.dump(hist.timestamps_distributed, outfile)
+    save_path = Path(args.save_dir) / "metrics" / "timestamps_centralized.json"
+    with open(save_path, "w") as outfile:
+        json.dump(hist.timestamps_centralized, outfile)
+    save_path = Path(args.save_dir) / "metrics" / "accuracy_centralized.json"
+    with open(save_path, "w") as outfile:
+        json.dump(hist.metrics_centralized, outfile)
     # # Dump results
     # # loss of global model
     # losses_centralized = hist.losses_centralized

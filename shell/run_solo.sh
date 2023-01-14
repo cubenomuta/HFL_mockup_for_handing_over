@@ -11,7 +11,7 @@ server_address=${args[1]}
 # fl configuration
 strategy="Solo"
 client_model="tinyCNN"
-dataset="FashionMNIST"
+dataset="CIFAR10"
 target=$1
 save_model=0
 

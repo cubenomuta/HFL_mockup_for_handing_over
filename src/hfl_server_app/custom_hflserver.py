@@ -1,42 +1,63 @@
-import concurrent
+import concurrent.futures
 import os
 import timeit
 from logging import DEBUG, INFO
 from typing import Dict, List, Optional, Tuple, Union
 
 import torch
-from flwr.common import Code, FitIns, FitRes, Parameters, Scalar, parameters_to_ndarrays
+from flwr.common import (
+    Code,
+    DisconnectRes,
+    EvaluateIns,
+    EvaluateRes,
+    FitIns,
+    FitRes,
+    GetParametersIns,
+    Parameters,
+    ReconnectIns,
+    Scalar,
+    parameters_to_ndarrays,
+)
 from flwr.common.logger import log
-from flwr.server import Server
-from flwr.server.client_manager import ClientManager
-from flwr.server.client_proxy import ClientProxy
-from flwr.server.history import History
-from flwr.server.strategy import Strategy
+from flwr.server import History
 from models.base_model import Net
+from server_app.custom_history import CustomHistory
 
-from .custom_history import CustomHistory
+from .base_hflserver import HFLServer
+from .fog_manager import FogManager
+from .fog_proxy import FogProxy
+from .strategy.fedavg import FedAvg
+from .strategy.strategy import Strategy
 
 FitResultsAndFailures = Tuple[
-    List[Tuple[ClientProxy, FitRes]],
-    List[Union[Tuple[ClientProxy, FitRes], BaseException]],
+    List[Tuple[FogProxy, FitRes]],
+    List[Union[Tuple[FogProxy, FitRes], BaseException]],
+]
+EvaluateResultsAndFailures = Tuple[
+    List[Tuple[FogProxy, EvaluateRes]],
+    List[Union[Tuple[FogProxy, EvaluateRes], BaseException]],
+]
+ReconnectResultsAndFailures = Tuple[
+    List[Tuple[FogProxy, DisconnectRes]],
+    List[Union[Tuple[FogProxy, DisconnectRes], BaseException]],
 ]
 
 
-class CustomServer(Server):
-    """
-    Flower server implementation for system performance measurement.
-    """
+class CustomHFLServer(HFLServer):
+    """Flower server."""
 
     def __init__(
         self,
-        client_manager: ClientManager,
+        *,
+        fog_manager: FogManager,
         strategy: Optional[Strategy] = None,
         save_model: bool = False,
         save_dir: str = None,
         net: Net = None,
     ) -> None:
-        super(CustomServer, self).__init__(
-            client_manager=client_manager, strategy=strategy
+        super(CustomHFLServer, self).__init__(
+            fog_manager=fog_manager,
+            strategy=strategy,
         )
         self.save_model = save_model
         if self.save_model:
@@ -45,24 +66,32 @@ class CustomServer(Server):
             self.net = net
             self.save_dir = save_dir
 
+    # pylint: disable=too-many-locals
     def fit(self, num_rounds: int, timeout: Optional[float]) -> History:
+        """Run federated averaging for a number of rounds."""
         history = CustomHistory()
 
+        # Initialize parameters
         log(INFO, "Initializing global parameters")
         self.parameters = self._get_initial_parameters(timeout=timeout)
         log(INFO, "Evaluating initial parameters")
         res = self.strategy.evaluate(0, parameters=self.parameters)
         if res is not None:
             log(
-                INFO, "initial parameters (loss, other metrics): %s, %s", res[0], res[1]
+                INFO,
+                "initial parameters (loss, other metrics): %s, %s",
+                res[0],
+                res[1],
             )
             history.add_loss_centralized(server_round=0, loss=res[0])
             history.add_metrics_centralized(server_round=0, metrics=res[1])
 
+        # Run federated learning for num_rounds
         log(INFO, "FL starting")
         start_time = timeit.default_timer()
 
         for current_round in range(1, num_rounds + 1):
+            # Train model and replace previous global model
             res_fit = self.fit_round(
                 server_round=current_round, timeout=timeout, start_time=start_time
             )
@@ -101,12 +130,12 @@ class CustomServer(Server):
             history.add_timestamps_distributed(
                 server_round=current_round, timestamps=timestamps_fed
             )
-
         if self.save_model:
             weights = parameters_to_ndarrays(self.parameters)
             self.net.set_weights(weights)
             save_path = os.path.join(self.save_dir, "final_model.pth")
             torch.save(self.net.to("cpu").state_dict(), save_path)
+
         # Bookkeeping
         end_time = timeit.default_timer()
         elapsed = end_time - start_time
@@ -114,48 +143,49 @@ class CustomServer(Server):
         return history
 
     def fit_round(
-        self, server_round: int, timeout: Optional[float], start_time: Optional[float]
+        self,
+        server_round: int,
+        timeout: Optional[float],
+        start_time: Optional[float],
     ) -> Optional[
         Tuple[Optional[Parameters], Dict[str, Scalar], FitResultsAndFailures]
     ]:
         """Perform a single round of federated averaging."""
         timestamps: Dict[str, Scalar] = {}
 
-        # Get clients and their respective instructions from strategy
-        client_instructions = self.strategy.configure_fit(
+        # Get fogs and their respective instructions from strategy
+        fog_instructions = self.strategy.configure_fit(
             server_round=server_round,
             parameters=self.parameters,
-            client_manager=self._client_manager,
+            fog_manager=self._fog_manager,
         )
 
-        if not client_instructions:
-            log(INFO, "fit_round %s: no clients selected, cancel", server_round)
+        if not fog_instructions:
+            log(INFO, "fit_round %s: no fogs selected, cancel", server_round)
             return None
-        timestamps["client_sampling"] = timeit.default_timer() - start_time
+        timestamps["fog_sampling"] = timeit.default_timer() - start_time
         log(
             DEBUG,
-            "fit_round %s: strategy sampled %s clients (out of %s) at %s",
+            "fit_round %s: strategy sampled %s fogs (out of %s)",
             server_round,
-            len(client_instructions),
-            self._client_manager.num_available(),
-            timestamps["client_sampling"],
+            len(fog_instructions),
+            self._fog_manager.num_available(),
         )
-        self.set_max_workers(max_workers=len(client_instructions))
+        self.set_max_workers(len(fog_instructions))
 
-        # Collect `fit` results from all clients participating in this round
-        results, failures = fit_clients(
-            client_instructions=client_instructions,
+        # Collect `fit` results from all fogs participating in this round
+        results, failures = fit_fogs(
+            fog_instructions=fog_instructions,
             max_workers=self.max_workers,
             timeout=timeout,
         )
         timestamps["fitres_received"] = timeit.default_timer() - start_time
         log(
             DEBUG,
-            "fit_round %s: received %s results and %s failures at %s",
+            "fit_round %s received %s results and %s failures",
             server_round,
             len(results),
             len(failures),
-            timestamps["fitres_received"],
         )
 
         # Aggregate training results
@@ -164,32 +194,22 @@ class CustomServer(Server):
             Dict[str, Scalar],
         ] = self.strategy.aggregate_fit(server_round, results, failures)
         timestamps["model_aggregation"] = timeit.default_timer() - start_time
-        log(
-            DEBUG,
-            "fit_round %s: strategy aggregate the received parameters at %s",
-            server_round,
-            timestamps["model_aggregation"],
-        )
 
         parameters_aggregated, metrics_aggregated = aggregated_result
-        return (
-            parameters_aggregated,
-            timestamps,
-            metrics_aggregated,
-            (results, failures),
-        )
+
+        return parameters_aggregated, metrics_aggregated, ()
 
 
-def fit_clients(
-    client_instructions: List[Tuple[ClientProxy, FitIns]],
+def fit_fogs(
+    fog_instructions: List[Tuple[FogProxy, FitIns]],
     max_workers: Optional[int],
     timeout: Optional[float],
 ) -> FitResultsAndFailures:
-    """Refine parameters concurrently on all selected clients."""
+    """Refine parameters concurrently on all selected fogs."""
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         submitted_fs = {
-            executor.submit(fit_client, client_proxy, ins, timeout)
-            for client_proxy, ins in client_instructions
+            executor.submit(fit_fog, fog_proxy, ins, timeout)
+            for fog_proxy, ins in fog_instructions
         }
         finished_fs, _ = concurrent.futures.wait(
             fs=submitted_fs,
@@ -197,8 +217,8 @@ def fit_clients(
         )
 
     # Gather results
-    results: List[Tuple[ClientProxy, FitRes]] = []
-    failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]] = []
+    results: List[Tuple[FogProxy, FitRes]] = []
+    failures: List[Union[Tuple[FogProxy, FitRes], BaseException]] = []
     for future in finished_fs:
         _handle_finished_future_after_fit(
             future=future, results=results, failures=failures
@@ -206,22 +226,22 @@ def fit_clients(
     return results, failures
 
 
-def fit_client(
-    client: ClientProxy, ins: FitIns, timeout: Optional[float]
-) -> Tuple[ClientProxy, FitRes]:
-    """Refine parameters on a single client."""
+def fit_fog(
+    fog: FogProxy, ins: FitIns, timeout: Optional[float]
+) -> Tuple[FogProxy, FitRes]:
+    """Refine parameters on a single fog."""
     start_time = timeit.default_timer()
-    fit_res = client.fit(ins, timeout=timeout)
+    fit_res = fog.fit(ins, timeout=timeout)
     total_time = timeit.default_timer() - start_time
     fit_res.metrics["total"] = total_time
-    fit_res.metrics["cid"] = client.cid
-    return client, fit_res
+    fit_res.metrics["fid"] = fog.fid
+    return fog, fit_res
 
 
 def _handle_finished_future_after_fit(
     future: concurrent.futures.Future,  # type: ignore
-    results: List[Tuple[ClientProxy, FitRes]],
-    failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
+    results: List[Tuple[FogProxy, FitRes]],
+    failures: List[Union[Tuple[FogProxy, FitRes], BaseException]],
 ) -> None:
     """Convert finished future into either a result or a failure."""
 
@@ -231,8 +251,8 @@ def _handle_finished_future_after_fit(
         failures.append(failure)
         return
 
-    # Successfully received a result from a client
-    result: Tuple[ClientProxy, FitRes] = future.result()
+    # Successfully received a result from a fog
+    result: Tuple[FogProxy, FitRes] = future.result()
     _, res = result
 
     # Check result status code
@@ -240,5 +260,5 @@ def _handle_finished_future_after_fit(
         results.append(result)
         return
 
-    # Not successful, client returned a result where the status code is not OK
+    # Not successful, fog returned a result where the status code is not OK
     failures.append(result)

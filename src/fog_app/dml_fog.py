@@ -1,3 +1,5 @@
+import concurrent
+import timeit
 from logging import DEBUG, INFO
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -12,9 +14,9 @@ from flwr.common import (
     Status,
 )
 from flwr.common.logger import log
-from flwr.server import ClientManager, Server
+from flwr.server import ClientManager
 from flwr.server.client_proxy import ClientProxy
-from flwr.server.server import evaluate_clients, fit_clients
+from flwr.server.server import evaluate_clients
 from flwr.server.strategy import Strategy
 
 from .base_fog import FlowerFog
@@ -57,6 +59,7 @@ class FlowerDMLFog(FlowerFog):
         # }
 
     def fit(self, ins: FitIns) -> FitRes:
+        start_time = timeit.default_timer()
         # Fit configuration
         server_round: int = int(ins.config["server_round"])
         server_parameters: Parameters = ins.parameters
@@ -114,6 +117,7 @@ class FlowerDMLFog(FlowerFog):
         )
         self.set_max_workers(max_workers=len(client_instructions))
 
+        fit_clients_start = timeit.default_timer() - start_time
         results, failures = fit_clients(
             client_instructions=client_instructions,
             max_workers=self.max_workers,
@@ -126,6 +130,8 @@ class FlowerDMLFog(FlowerFog):
             len(results),
             len(failures),
         )
+        fit_clients_end = timeit.default_timer() - start_time
+        fit_clients_time = fit_clients_end - fit_clients_start
 
         if len(failures) > 0:
             raise ValueError("Insufficient fit results from clients.")
@@ -155,12 +161,21 @@ class FlowerDMLFog(FlowerFog):
                 "distillation_multiple_parameters() on fog fid=%s completed",
                 self.fid,
             )
+        # Aggregate training results
+        aggregated_result: Tuple[
+            Optional[Parameters],
+            Dict[str, Scalar],
+        ] = self.strategy.aggregate_fit(server_round, results, failures)
+        _, metrics_aggregated = aggregated_result
+        fit_total = timeit.default_timer() - start_time
+        metrics_aggregated["comp"] = fit_total - fit_clients_time
+        metrics_aggregated["fit_total"] = fit_total
 
         return FitRes(
             status=Status(Code.OK, message="success fit"),
             parameters=fog_parameters,
             num_examples=len(self.trainset),
-            metrics={},
+            metrics=metrics_aggregated,
         )
 
     def evaluate(self, ins: EvaluateIns) -> EvaluateRes:
@@ -211,3 +226,67 @@ class FlowerDMLFog(FlowerFog):
             num_examples=int(ins.config["batch_size"]),
             metrics=metrics_aggregated,
         )
+
+
+def fit_clients(
+    client_instructions: List[Tuple[ClientProxy, FitIns]],
+    max_workers: Optional[int],
+    timeout: Optional[float],
+) -> FitResultsAndFailures:
+    """Refine parameters concurrently on all selected clients."""
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        submitted_fs = {
+            executor.submit(fit_client, client_proxy, ins, timeout)
+            for client_proxy, ins in client_instructions
+        }
+        finished_fs, _ = concurrent.futures.wait(
+            fs=submitted_fs,
+            timeout=None,  # Handled in the respective communication stack
+        )
+
+    # Gather results
+    results: List[Tuple[ClientProxy, FitRes]] = []
+    failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]] = []
+    for future in finished_fs:
+        _handle_finished_future_after_fit(
+            future=future, results=results, failures=failures
+        )
+    return results, failures
+
+
+def fit_client(
+    client: ClientProxy, ins: FitIns, timeout: Optional[float]
+) -> Tuple[ClientProxy, FitRes]:
+    """Refine parameters on a single client."""
+    start_time = timeit.default_timer()
+    fit_res = client.fit(ins, timeout=timeout)
+    total_time = timeit.default_timer() - start_time
+    fit_res.metrics["total"] = total_time
+    fit_res.metrics["cid"] = client.cid
+    return client, fit_res
+
+
+def _handle_finished_future_after_fit(
+    future: concurrent.futures.Future,  # type: ignore
+    results: List[Tuple[ClientProxy, FitRes]],
+    failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
+) -> None:
+    """Convert finished future into either a result or a failure."""
+
+    # Check if there was an exception
+    failure = future.exception()
+    if failure is not None:
+        failures.append(failure)
+        return
+
+    # Successfully received a result from a client
+    result: Tuple[ClientProxy, FitRes] = future.result()
+    _, res = result
+
+    # Check result status code
+    if res.status.code == Code.OK:
+        results.append(result)
+        return
+
+    # Not successful, client returned a result where the status code is not OK
+    failures.append(result)

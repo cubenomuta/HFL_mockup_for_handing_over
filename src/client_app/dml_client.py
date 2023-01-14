@@ -1,3 +1,4 @@
+import timeit
 from typing import Any, Dict, Optional
 
 from flwr.common import (
@@ -31,6 +32,7 @@ class FlowerDMLClient(FlowerClient):
         )
 
     def fit(self, ins: FitIns) -> FitRes:
+        start_time = timeit.default_timer()
         weights: NDArrays = parameters_to_ndarrays(ins.parameters)
         epochs: int = int(ins.config["local_epochs"])
         batch_size: int = int(ins.config["batch_size"])
@@ -61,11 +63,12 @@ class FlowerDMLClient(FlowerClient):
             device=self.device,
         )
         parameters_prime: Parameters = ndarrays_to_parameters(self.meme.get_weights())
+        comp_time = timeit.default_timer() - start_time
         return FitRes(
             status=Status(Code.OK, message="Success fit"),
             parameters=parameters_prime,
             num_examples=len(self.trainset),
-            metrics={},
+            metrics={"comp": comp_time},
         )
 
 

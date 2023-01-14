@@ -1,10 +1,11 @@
 import argparse
 import gc
+import json
 import os
 import random
 import warnings
 from pathlib import Path
-from typing import Callable, Dict, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -159,6 +160,17 @@ def main():
 
         return evaluate
 
+    def timestamp_aggregation_fn(
+        fit_metrics: List,
+    ) -> Dict[str, Dict[str, Scalar]]:
+        timestamps_aggregated: Dict[str, Dict[str, float]] = {}
+        for _, metrics in fit_metrics:
+            cid = metrics["cid"]
+            timestamps_aggregated[cid] = {}
+            timestamps_aggregated[cid]["comm"] = metrics["total"] - metrics["comp"]
+            timestamps_aggregated[cid]["comp"] = metrics["comp"]
+        return timestamps_aggregated
+
     # Create strategy
     if args.strategy == "FedAvg" or args.strategy == "FML":
         strategy = FedAvg(
@@ -170,6 +182,7 @@ def main():
             evaluate_fn=get_eval_fn(net, args.dataset, args.target),
             on_fit_config_fn=fit_config,
             on_evaluate_config_fn=eval_config,
+            fit_metrics_aggregation_fn=timestamp_aggregation_fn,
             initial_parameters=init_parameters,
         )
     else:
@@ -180,7 +193,7 @@ def main():
     )
 
     # Start Flower server for four rounds of federated learning
-    start_server(
+    hist = start_server(
         server_address=args.server_address,
         server=server,
         config=server_config,
@@ -191,6 +204,17 @@ def main():
     config.update(fit_parameter_config)
     with open(save_path, "w") as outfile:
         yaml.dump(config, outfile)
+    with open(save_path, "w") as outfile:
+        yaml.dump(config, outfile)
+    save_path = Path(args.save_dir) / "metrics" / "timestamps_federated.json"
+    with open(save_path, "w") as outfile:
+        json.dump(hist.timestamps_distributed, outfile)
+    save_path = Path(args.save_dir) / "metrics" / "timestamps_centralized.json"
+    with open(save_path, "w") as outfile:
+        json.dump(hist.timestamps_centralized, outfile)
+    save_path = Path(args.save_dir) / "metrics" / "accuracy_centralized.json"
+    with open(save_path, "w") as outfile:
+        json.dump(hist.metrics_centralized, outfile)
 
 
 if __name__ == "__main__":

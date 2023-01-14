@@ -1,3 +1,4 @@
+import timeit
 import warnings
 from logging import INFO
 from os import stat
@@ -80,6 +81,7 @@ class FlowerClient(Client):
         return GetParametersRes(status=Code.OK, parameters=parameters)
 
     def fit(self, ins: FitIns) -> FitRes:
+        start_time = timeit.default_timer()
         # unwrapping FitIns
         weights: NDArrays = parameters_to_ndarrays(ins.parameters)
         epochs: int = int(ins.config["local_epochs"])
@@ -113,12 +115,12 @@ class FlowerClient(Client):
             use_tqdm=False,
         )
         parameters_prime: Parameters = ndarrays_to_parameters(self.net.get_weights())
-        log(INFO, "fit() on client cid=%s", self.cid)
+        comp_stamp = timeit.default_timer() - start_time
         return FitRes(
             status=Status(Code.OK, message="Success fit"),
             parameters=parameters_prime,
             num_examples=len(self.trainset),
-            metrics={},
+            metrics={"comp": comp_stamp},
         )
 
     def evaluate(self, ins: EvaluateIns) -> EvaluateRes:

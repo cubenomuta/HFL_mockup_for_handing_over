@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import torch
-from flwr.common import Parameters, ndarrays_to_parameters
+from flwr.common import Parameters, Scalar, ndarrays_to_parameters
 from flwr.server import SimpleClientManager
 from fog_app.app import start_fog
 from fog_app.base_fog import FlowerFog
@@ -108,18 +108,15 @@ def main() -> None:
         "num_clients": args.num_clients,
     }
 
-    def evaluate_metrics_fog_aggregation_fn(
-        eval_metrics: List[Tuple[int, Dict[str, Any]]]
+    def fit_metrics_aggregation_fn(
+        fit_metrics: List[Tuple[int, Dict[str, Any]]],
     ):
-        accuracy_summary = np.array([metrics["acc"] for _, metrics in eval_metrics])
-        loss_summary = np.array([metrics["loss"] for _, metrics in eval_metrics])
-        metrics_aggregated = {
-            "accuracy_mean": float(accuracy_summary.mean()),
-            "accuracy_std": float(accuracy_summary.std()),
-            "loss_mean": float(loss_summary.mean()),
-            "loss_std": float(loss_summary.std()),
-        }
-        return metrics_aggregated
+        timestamps_aggregated: Dict[str, Scalar] = {}
+        for _, metrics in fit_metrics:
+            cid = metrics["cid"]
+            timestamps_aggregated[cid + "_comp"] = metrics["comp"]
+            timestamps_aggregated[cid + "_comm"] = metrics["total"] - metrics["comp"]
+        return timestamps_aggregated
 
     client_manager = SimpleClientManager()
     if args.strategy == "FedFog":
@@ -130,7 +127,7 @@ def main() -> None:
             min_fit_clients=args.num_clients,
             min_evaluate_clients=args.num_clients,
             min_available_clients=args.num_clients,
-            evaluate_metrics_aggregation_fn=evaluate_metrics_fog_aggregation_fn,
+            fit_metrics_aggregation_fn=fit_metrics_aggregation_fn,
         )
         fog: FlowerFog = FlowerFog(
             fid=args.fid,
@@ -145,7 +142,7 @@ def main() -> None:
             min_fit_clients=args.num_clients,
             min_evaluate_clients=args.num_clients,
             min_available_clients=args.num_clients,
-            evaluate_metrics_aggregation_fn=evaluate_metrics_fog_aggregation_fn,
+            fit_metrics_aggregation_fn=fit_metrics_aggregation_fn,
         )
         dataset_config: Dict[str, str] = configure_dataset(
             dataset_name=args.dataset, target=args.target
