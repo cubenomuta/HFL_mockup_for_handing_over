@@ -84,20 +84,21 @@ def metrics_centralized_plot(
 
     for idx, target in enumerate(config):
         for strategy, dirname in config[target].items():
-            load_path = (
-                root / target / dirname / "metrics" / f"{metrics}_centralized.json"
-            )
-            with open(load_path, "r") as f:
-                result = json.load(f)
-            result_numpy = np.array(result)
-            axes[idx].plot(
-                result_numpy[:, 0],
-                result_numpy[:, 1],
-                label=strategy,
-                linewidth=2,
-                alpha=0.7,
-            )
-            axes[idx].set_title(titles[idx], fontsize=20)
+            if strategy != "Solo":
+                load_path = (
+                    root / target / dirname / "metrics" / f"{metrics}_centralized.json"
+                )
+                with open(load_path, "r") as f:
+                    result = json.load(f)
+                result_numpy = np.array(result)
+                axes[idx].plot(
+                    result_numpy[:, 0],
+                    result_numpy[:, 1],
+                    label=strategy,
+                    linewidth=2,
+                    alpha=0.7,
+                )
+                axes[idx].set_title(titles[idx], fontsize=20)
 
     # legend configuration
     lines, labels = axes[0].get_legend_handles_labels()
@@ -148,11 +149,17 @@ def metrics_distributed_plot(
                 linewidth=2,
                 alpha=0.7,
             )
+            axes[idx].fill_between(
+                result_numpy[:, 0],
+                metrics_mean + metrics_std,
+                metrics_mean - metrics_std,
+                alpha=0.15,
+            )
             axes[idx].set_title(titles[idx], fontsize=20)
 
     # legend configuration
     lines, labels = axes[0].get_legend_handles_labels()
-    leg = fig.legend(lines, labels, loc="upper center", ncol=3)
+    leg = fig.legend(lines, labels, loc="upper center", ncol=4)
     for legobj in leg.legendHandles:
         legobj.set_linewidth(4.0)
     fig.supxlabel("Communication Rounds", y=0.05)
@@ -165,7 +172,7 @@ def metrics_distributed_plot(
 
 def main():
     args = parser.parse_args()
-    work_dir = Path("./visualization") / args.dataset
+    work_dir = Path("./visualization/simulation") / args.dataset
 
     config_path = work_dir / "config.json"
     with open(config_path, "r") as f:
@@ -185,7 +192,7 @@ def main():
         yticks_minor=[0.05 * int(i) for i in range(21)],
         yticklabels=[0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
     )
-    save_path = work_dir / "GA_summary.png"
+    save_path = work_dir / "GA_summary.pdf"
     metrics_centralized_plot(
         fig=fig,
         axes=axes,
@@ -209,7 +216,7 @@ def main():
         yticks_minor=[0.05 * int(i) for i in range(21)],
         yticklabels=[0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
     )
-    save_path = work_dir / "CA_summary.png"
+    save_path = work_dir / "CA_summary.pdf"
     metrics_distributed_plot(
         fig=fig,
         axes=axes,
@@ -226,14 +233,14 @@ def main():
         num_rows=2,
         xlim=(0, 500),
         xticks_major=[i * 100 for i in range(6)],
-        xticks_minor=[i * 50 for i in range(12)],
+        xticks_minor=[i * 50 for i in range(11)],
         xticklabels=[0, 100, 200, 300, 400, 500],
         ylim=(0, 3.05),
         yticks_major=[1.0 * int(i) for i in range(6)],
-        yticks_minor=[0.2 * int(i) for i in range(21)],
+        yticks_minor=[0.2 * int(i) for i in range(25)],
         yticklabels=[0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
     )
-    save_path = work_dir / "GL_summary.png"
+    save_path = work_dir / "GL_summary.pdf"
     metrics_centralized_plot(
         fig=fig,
         axes=axes,
@@ -250,14 +257,14 @@ def main():
         num_rows=2,
         xlim=(0, 500),
         xticks_major=[i * 100 for i in range(6)],
-        xticks_minor=[i * 50 for i in range(12)],
+        xticks_minor=[i * 50 for i in range(11)],
         xticklabels=[0, 100, 200, 300, 400, 500],
         ylim=(0, 3.05),
         yticks_major=[1.0 * int(i) for i in range(6)],
-        yticks_minor=[0.2 * int(i) for i in range(21)],
+        yticks_minor=[0.2 * int(i) for i in range(25)],
         yticklabels=[0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
     )
-    save_path = work_dir / "CL_summary.png"
+    save_path = work_dir / "CL_summary.pdf"
     metrics_distributed_plot(
         fig=fig,
         axes=axes,

@@ -192,7 +192,7 @@ def main():
         fit_metrics: List[Tuple[int, Dict[str, Any]]],
     ):
         timestamps_aggregated = {}
-        print(fit_metrics)
+        # print(fit_metrics)
         for fid, metrics in fit_metrics.items():
             timestamps_aggregated[fid] = {}
             timestamps_aggregated[fid]["comm"] = metrics["total"] - metrics["fit_total"]
@@ -252,6 +252,7 @@ def main():
     save_path = Path(args.save_dir) / "metrics" / "accuracy_centralized.json"
     with open(save_path, "w") as outfile:
         json.dump(hist.metrics_centralized, outfile)
+
 
 if __name__ == "__main__":
     main()
