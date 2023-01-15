@@ -1,3 +1,4 @@
+from logging import WARNING
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import flwr as fl
@@ -10,6 +11,7 @@ from flwr.common import (
     Parameters,
     Scalar,
 )
+from flwr.common.logger import log
 from flwr.server import ClientManager
 from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy import FedAvg
@@ -86,32 +88,45 @@ class F2MKD(FedAvg):
     def aggregate_fit(
         self,
         server_round: int,
-        server_parameters: Parameters,
-        config: Dict[str, Any],
         results: List[Tuple[ClientProxy, FitRes]],
         failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
     ) -> Tuple[
         Optional[Parameters], Optional[Dict[str, Parameters]], Dict[str, Scalar]
     ]:
         if not results:
-            return None, None, {}
-
+            return None, {}
+        # Do not aggregate if there are failures and failures are not accepted
         if not self.accept_failures and failures:
-            return None, None, {}
+            return None, {}
 
-        client_parameters_dict = {
-            client.cid: fit_res.parameters for client, fit_res in results
-        }
+        # Aggregate custom metrics if aggregation fn was provided
+        metrics_aggregated = {}
+        if self.fit_metrics_aggregation_fn:
+            fit_metrics = [(res.num_examples, res.metrics) for _, res in results]
+            metrics_aggregated = self.fit_metrics_aggregation_fn(fit_metrics)
+        elif server_round == 1:  # Only log this warning once
+            log(WARNING, "No fit_metrics_aggregation_fn provided")
 
-        parameters_prime = distillation_multiple_parameters(
-            teacher_parameters_list=[
-                client_parameters
-                for client_parameters in client_parameters_dict.values()
-            ],
-            student_parameters=server_parameters,
-            config=config,
-        )
-        return parameters_prime, client_parameters_dict, {}
+        return metrics_aggregated
+        # if not results:
+        #     return None, None, {}
+
+        # if not self.accept_failures and failures:
+        #     return None, None, {}
+
+        # client_parameters_dict = {
+        #     client.cid: fit_res.parameters for client, fit_res in results
+        # }
+
+        # parameters_prime = distillation_multiple_parameters(
+        #     teacher_parameters_list=[
+        #         client_parameters
+        #         for client_parameters in client_parameters_dict.values()
+        #     ],
+        #     student_parameters=server_parameters,
+        #     config=config,
+        # )
+        # return parameters_prime, client_parameters_dict, {}
 
     def configure_evaluate(
         self,

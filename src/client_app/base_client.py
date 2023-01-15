@@ -40,7 +40,7 @@ class FlowerClient(Client):
     def __init__(self, cid: str, config: Dict[str, str]):
         self.cid = cid
         self.fid = str(int(self.cid) // 100)
-        self.attribute = "client"
+        self.attribute = "client_exp"
 
         # dataset configuration
         self.dataset = config["dataset_name"]
@@ -87,7 +87,6 @@ class FlowerClient(Client):
         epochs: int = int(ins.config["local_epochs"])
         batch_size: int = int(ins.config["batch_size"])
         lr: float = float(ins.config["lr"])
-        print(ins.config)
         weight_decay: float = float(ins.config["weight_decay"])
 
         # set parameters
@@ -97,9 +96,7 @@ class FlowerClient(Client):
         trainloader = DataLoader(
             self.trainset,
             batch_size=batch_size,
-            pin_memory=True,
             shuffle=True,
-            drop_last=True,
         )
         # valloader = DataLoader(
         #     self.valset, batch_size=100, shuffle=False, drop_last=False

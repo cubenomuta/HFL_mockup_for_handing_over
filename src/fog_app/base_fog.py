@@ -41,7 +41,7 @@ class FlowerFog(Server, Fog):
             client_manager=client_manager, strategy=strategy
         )
         self.fid = fid
-        self.attribute = "fog"
+        self.attribute = "fog_exp"
         self.config = config
 
         # dataset configuration
@@ -110,6 +110,7 @@ class FlowerFog(Server, Fog):
         fit_total = timeit.default_timer() - start_time
         metrics_aggregated["comp"] = fit_total - fit_clients_time
         metrics_aggregated["fit_total"] = fit_total
+        print(metrics_aggregated)
 
         return FitRes(
             status=Status(Code.OK, message="success fit"),

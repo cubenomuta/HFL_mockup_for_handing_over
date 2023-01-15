@@ -14,7 +14,7 @@ import yaml
 from flwr.common import NDArrays, Parameters, Scalar, ndarrays_to_parameters
 from flwr.server import ServerConfig
 from hfl_server_app.app import start_hfl_server
-from hfl_server_app.base_hflserver import HFLServer
+from hfl_server_app.custom_hflserver import CustomHFLServer
 from hfl_server_app.fog_manager import SimpleFogManager
 from hfl_server_app.strategy.fedavg import FedAvg
 from models.base_model import Net
@@ -192,8 +192,8 @@ def main():
         fit_metrics: List[Tuple[int, Dict[str, Any]]],
     ):
         timestamps_aggregated = {}
-        for _, metrics in fit_metrics:
-            fid = metrics["fid"]
+        print(fit_metrics)
+        for fid, metrics in fit_metrics.items():
             timestamps_aggregated[fid] = {}
             timestamps_aggregated[fid]["comm"] = metrics["total"] - metrics["fit_total"]
             timestamps_aggregated[fid]["comp"] = metrics["comp"]
@@ -202,12 +202,12 @@ def main():
                     cid = key[:-5]
                     if cid not in timestamps_aggregated:
                         timestamps_aggregated[cid] = {}
-                    timestamps_aggregated[cid]["comm"]
-                elif "ipv4" in key and "comm" in key:
+                    timestamps_aggregated[cid]["comm"] = metrics[key]
+                elif "ipv4" in key and "comp" in key:
                     cid = key[:-5]
                     if cid not in timestamps_aggregated:
                         timestamps_aggregated[cid] = {}
-                    timestamps_aggregated[cid]["comm"]
+                    timestamps_aggregated[cid]["comp"] = metrics[key]
         return timestamps_aggregated
 
     # Create strategy
@@ -224,7 +224,7 @@ def main():
         initial_parameters=server_init_parameters,
     )
     fog_manager = SimpleFogManager()
-    hfl_server = HFLServer(
+    hfl_server = CustomHFLServer(
         fog_manager=fog_manager,
         strategy=strategy,
     )
@@ -252,38 +252,6 @@ def main():
     save_path = Path(args.save_dir) / "metrics" / "accuracy_centralized.json"
     with open(save_path, "w") as outfile:
         json.dump(hist.metrics_centralized, outfile)
-    # # Dump results
-    # # loss of global model
-    # losses_centralized = hist.losses_centralized
-    # save_path = Path(args.save_dir) / "metrics" / "losses_centralized.json"
-    # with open(save_path, "w") as f:
-    #     json.dump(losses_centralized, f)
-
-    # # accuracy of global model
-    # accuracies_centralized = sorted(hist.metrics_centralized["accuracy"])
-    # save_path = Path(args.save_dir) / "metrics" / "accuracies_centralized.json"
-    # with open(save_path, "w") as f:
-    #     json.dump(accuracies_centralized, f)
-
-    # # loss of client models
-    # losses_distributed = sorted(hist.metrics_distributed["loss"].items())
-    # save_path = Path(args.save_dir) / "metrics" / "losses_distributed.json"
-    # with open(save_path, "w") as f:
-    #     json.dump(losses_distributed, f)
-
-    # # accuracy of client models
-    # accuracies_distributed = sorted(hist.metrics_distributed["accuracy"].items())
-    # save_path = Path(args.save_dir) / "metrics" / "accuracies_distributed.json"
-    # with open(save_path, "w") as f:
-    #     json.dump(accuracies_distributed, f)
-
-    # # configuration of the executed simulation
-    # params_config = vars(args)
-    # params_config.update(fit_parameter_config)
-    # save_path = Path(args.save_dir) / "params_config.yaml"
-    # with open(save_path, "w") as f:
-    #     yaml.dump(params_config, f)
-
 
 if __name__ == "__main__":
     main()

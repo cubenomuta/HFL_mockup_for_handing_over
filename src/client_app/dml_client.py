@@ -46,10 +46,7 @@ class FlowerDMLClient(FlowerClient):
         trainloader = DataLoader(
             self.trainset,
             batch_size=batch_size,
-            num_workers=2,
-            pin_memory=True,
             shuffle=True,
-            drop_last=True,
         )
 
         mutual_train(

@@ -19,7 +19,9 @@ services:
       - ../../shell:/home/$USER/project/shell
       - ../../data:/home/$USER/project/data/
       - ../../conf:/home/$USER/project/conf/
+      - ../../exp:/home/$USER/project/exp/
       - ../../simulation:/home/$USER/project/simulation/
+      - ../../visualization:/home/$USER/project/visualization/
       - ../../data/CIFAR10/partitions:/home/$USER/project/data/CIFAR10/partitions:ro
       - ../../data/FashionMNIST/partitions:/home/$USER/project/data/FashionMNIST/partitions:ro
       - ../../data/MNIST/partitions:/home/$USER/project/data/MNIST/partitions:ro

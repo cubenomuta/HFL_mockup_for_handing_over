@@ -197,7 +197,12 @@ class CustomHFLServer(HFLServer):
 
         parameters_aggregated, metrics_aggregated = aggregated_result
 
-        return parameters_aggregated, metrics_aggregated, ()
+        return (
+            parameters_aggregated,
+            timestamps,
+            metrics_aggregated,
+            (results, failures),
+        )
 
 
 def fit_fogs(

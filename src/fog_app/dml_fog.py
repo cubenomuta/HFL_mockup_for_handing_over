@@ -137,6 +137,10 @@ class FlowerDMLFog(FlowerFog):
             raise ValueError("Insufficient fit results from clients.")
         for client, fit_res in results:
             self.client_parameters_dict[client.cid] = fit_res.parameters
+        # Aggregate training results
+        metrics_aggregated: Dict[str, Scalar] = self.strategy.aggregate_fit(
+            server_round, results, failures
+        )
 
         # Distillation from multiple clients to server.
         distillation_from_clients_config = {
@@ -161,12 +165,7 @@ class FlowerDMLFog(FlowerFog):
                 "distillation_multiple_parameters() on fog fid=%s completed",
                 self.fid,
             )
-        # Aggregate training results
-        aggregated_result: Tuple[
-            Optional[Parameters],
-            Dict[str, Scalar],
-        ] = self.strategy.aggregate_fit(server_round, results, failures)
-        _, metrics_aggregated = aggregated_result
+
         fit_total = timeit.default_timer() - start_time
         metrics_aggregated["comp"] = fit_total - fit_clients_time
         metrics_aggregated["fit_total"] = fit_total

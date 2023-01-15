@@ -148,7 +148,7 @@ def main() -> None:
             dataset_name=args.dataset, target=args.target
         )
         client_net: Net = load_model(
-            name=args.server_model,
+            name=args.client_model,
             input_spec=dataset_config["input_spec"],
             out_dims=dataset_config["out_dims"],
         )
