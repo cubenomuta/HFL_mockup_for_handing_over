@@ -20,7 +20,7 @@ num_clients=10
 fraction_fit=1
 
 # fit configuration
-yaml_path="./conf/${dataset}/${strategy}_${server_model}_${client_model}/fit_config.yaml"
+yaml_path="./exp_conf/${dataset}/${strategy}_${server_model}_${client_model}/fit_config.yaml"
 seed=1234
 
 time=`date '+%Y%m%d%H%M'`

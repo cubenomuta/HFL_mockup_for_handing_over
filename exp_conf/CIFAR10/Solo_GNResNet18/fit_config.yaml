@@ -1,0 +1,4 @@
+batch_size: 50
+local_epochs: 5
+lr: 0.05
+weight_decay: 0.0005
