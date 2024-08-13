@@ -48,6 +48,12 @@ def load_fmnist():
     y_train = y_train.data.numpy()
     X_test = X_test.data.numpy()
     y_test = y_test.data.numpy()
+    # save_dir = Path("./data/FashionMNIST/data")
+    # os.makedirs(save_dir, exist_ok=True)  # ディレクトリが存在しない場合は作成
+    # np.save(save_dir / "X_train.npy", X_train)
+    # np.save(save_dir / "y_train.npy", y_train)
+    # np.save(save_dir / "X_test.npy", X_test)
+    # np.save(save_dir / "y_test.npy", y_test)
     return (X_train, y_train, X_test, y_test)
 
 
@@ -264,14 +270,15 @@ def create_noniid_dir(
     return net_dataidx_map, dirichlet_dist
 
 
-def record_net_data_stats(y_train, net_dataidx_map):
-    net_cls_counts = {}
-    for net_i, dataidx in net_dataidx_map.items():
-        unq, unq_cnt = np.unique(y_train[dataidx], return_counts=True)
-        tmp = {unq[i]: unq_cnt[i] for i in range(len(unq))}
-        net_cls_counts[net_i] = tmp
-    print(str(net_cls_counts))
-    return net_cls_counts
+# 複数定義があったのでコメントアウト
+# def record_net_data_stats(y_train, net_dataidx_map):
+#     net_cls_counts = {}
+#     for net_i, dataidx in net_dataidx_map.items():
+#         unq, unq_cnt = np.unique(y_train[dataidx], return_counts=True)
+#         tmp = {unq[i]: unq_cnt[i] for i in range(len(unq))}
+#         net_cls_counts[net_i] = tmp
+#     print(str(net_cls_counts))
+#     return net_cls_counts
 
 
 def sample_without_replacement(
@@ -321,13 +328,39 @@ def exclude_classes_and_normalize(
 
 
 def record_net_data_stats(y_train, net_dataidx_map):
-    net_cls_counts = {}
-    for net_i, dataidx in net_dataidx_map.items():
-        unq, unq_cnt = np.unique(y_train[dataidx], return_counts=True)
-        tmp = {unq[i]: unq_cnt[i] for i in range(len(unq))}
-        net_cls_counts[net_i] = tmp
-    print(str(net_cls_counts))
-    return net_cls_counts
+    try:
+        # 入力データの検証
+        if not isinstance(y_train, np.ndarray):
+            raise TypeError("y_train must be a numpy array")
+        if not isinstance(net_dataidx_map, dict):
+            raise TypeError("net_dataidx_map must be a dictionary")
+        if not all(isinstance(k, int) for k in net_dataidx_map.keys()):
+            raise TypeError("All keys in net_dataidx_map must be integers")
+        if not all(isinstance(v, list) for v in net_dataidx_map.values()):
+            raise TypeError("All values in net_dataidx_map must be lists")
+        
+        net_cls_counts = {}
+        for net_i, dataidx in net_dataidx_map.items():
+            if not all(isinstance(idx, int) for idx in dataidx):
+                raise ValueError(f"All indices in net_dataidx_map[{net_i}] must be integers. Found: {dataidx}")
+            if any(idx >= len(y_train) or idx < 0 for idx in dataidx):
+                raise IndexError(f"Index out of bounds in net_dataidx_map[{net_i}]. Found: {dataidx}")
+            
+            unq, unq_cnt = np.unique(y_train[dataidx], return_counts=True)
+            tmp = {unq[i]: unq_cnt[i] for i in range(len(unq))}
+            net_cls_counts[net_i] = tmp
+        
+        print(str(net_cls_counts))
+        return net_cls_counts
+
+    except TypeError as te:
+        print(f"TypeError: {te}")
+    except ValueError as ve:
+        print(f"ValueError: {ve}")
+    except IndexError as ie:
+        print(f"IndexError: {ie}")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
 
 
 def write_json(json_data: Dict[str, List[np.ndarray]], save_dir: str, file_name: str):

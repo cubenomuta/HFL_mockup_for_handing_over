@@ -3,16 +3,18 @@
 . ./shell/path.sh
 
 # FL system configuration
-num_fogs=10
+num_fogs=5
 num_clients=100
 
 # dataset configuration
 dataset="FashionMNIST"
 fog_partitions=$1 # "noniid-label2,1", "iid"
 client_partitions=$2 # "noniid-label2,1", "iid"
+# target=$3
 seed=1234
 
 save_dir="./data/${dataset}/partitions/${fog_partitions}_${client_partitions}"
+# save_dir="./data/${dataset}/${fog_partitions}/${target}"
 
 if [ ! -e "${save_dir}" ]; then
     mkdir -p "${save_dir}/logs/"
@@ -28,3 +30,4 @@ python ./local/create_partitions.py \
 --seed ${seed} \
 1> "${save_dir}/logs/standard.log" \
 2> "${save_dir}/logs/flower.log"
+echo "created partitions at ${save_dir}"
