@@ -40,7 +40,10 @@ class FlowerClient(Client):
     def __init__(self, cid: str, config: Dict[str, str]):
         self.cid = cid
         self.fid = str(int(self.cid) // 100)
-        self.attribute = "client_exp"
+        # ここを直さないと実行できないので注意
+        # self.attribute = "client_exp"
+        self.attribute = "client"
+
 
         # dataset configuration
         self.dataset = config["dataset_name"]
