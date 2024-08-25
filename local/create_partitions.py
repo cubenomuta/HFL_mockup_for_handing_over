@@ -110,6 +110,7 @@ def main(args):
 
     # FL configuration
     num_fogs = args.num_fogs
+    print(f"num_fogs: {num_fogs}")
     num_clients = args.num_clients
     dataset = args.dataset
     fog_partitions = args.fog_partitions
@@ -225,8 +226,8 @@ def main(args):
         # メインのリストを初期化
         index_list = []
         start = 0
-        end = 500
-        step = 100
+        end = num_fogs * num_clients
+        step = num_clients
         # サブリストを作成し、メインのリストに追加
         for i in range(start, end, step):
             sub_list = list(range(i, i + step))
@@ -301,8 +302,8 @@ def main(args):
         # メインのリストを初期化
         index_list = []
         start = 0
-        end = 500
-        step = 100
+        end = num_fogs * num_clients
+        step = num_clients
         # サブリストを作成し、メインのリストに追加
         for i in range(start, end, step):
             sub_list = list(range(i, i + step))
