@@ -44,7 +44,9 @@ def subplots_setup(
     plt.rcParams["axes.linewidth"] = 1.5
     plt.rcParams["legend.edgecolor"] = "black"
     plt.rcParams["legend.markerscale"] = 10
-    plt.rcParams["font.family"] = ["Arial"]
+    # plt.rcParams["font.family"] = ["Arial"]
+    plt.rcParams["font.family"] = ["DejaVu Sans"]
+
 
     # setup subplots
     fig, axes = plt.subplots(
@@ -103,7 +105,7 @@ def metrics_centralized_plot(
     # legend configuration
     lines, labels = axes[0].get_legend_handles_labels()
     leg = fig.legend(lines, labels, loc="upper center", ncol=3)
-    for legobj in leg.legendHandles:
+    for legobj in leg.legend_handles:
         legobj.set_linewidth(4.0)
     fig.supxlabel("Communication Rounds", y=0.05)
     if metrics == "accuracies":
@@ -160,7 +162,7 @@ def metrics_distributed_plot(
     # legend configuration
     lines, labels = axes[0].get_legend_handles_labels()
     leg = fig.legend(lines, labels, loc="upper center", ncol=4)
-    for legobj in leg.legendHandles:
+    for legobj in leg.legend_handles:
         legobj.set_linewidth(4.0)
     fig.supxlabel("Communication Rounds", y=0.05)
     if metrics == "accuracies":
