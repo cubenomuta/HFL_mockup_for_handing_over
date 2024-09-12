@@ -148,6 +148,7 @@ def _fl(
     log(INFO, "app_fit: metrics_distributed %s", str(hist.metrics_distributed))
     log(INFO, "app_fit: losses_centralized %s", str(hist.losses_centralized))
     log(INFO, "app_fit: metrics_centralized %s", str(hist.metrics_centralized))
+    log(INFO, "appp_fit: metrics %s", str(hist.metrics_cluster_model))
 
     # Graceful shutdown
     hfl_server.disconnect_all_fogs(timeout=config.round_timeout)

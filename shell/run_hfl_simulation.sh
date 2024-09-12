@@ -10,7 +10,7 @@ done < ${CUDA_VISIBLE_DEVICES_FILE}
 fi
 
 # fl configuration
-strategy="F2MKD"
+strategy="F2MKDC"
 server_model="tinyCNN"
 client_model="tinyCNN"
 dataset="FashionMNIST"
@@ -23,6 +23,7 @@ fraction_fit=1
 # fit configuration
 yaml_path="./conf/${dataset}/${strategy}_${server_model}_${client_model}/fit_config.yaml"
 seed=1234
+echo "Running ${yaml_path}"
 
 time=`date '+%Y%m%d%H%M'`
 exp_dir="./simulation/${dataset}/${target}/${strategy}_${server_model}_${client_model}/run_${time}"
@@ -32,6 +33,7 @@ if [ ! -e "${exp_dir}" ]; then
     mkdir -p "${exp_dir}/models/"
     mkdir -p "${exp_dir}/metrics/"
 fi
+echo "create dir to ${exp_dir}"
 
 ray start --head --min-worker-port 20000 --max-worker-port 29999 --num-cpus $2
 sleep 1 

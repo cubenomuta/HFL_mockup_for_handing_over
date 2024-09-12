@@ -17,7 +17,7 @@ Paper: https://arxiv.org/abs/1602.05629
 """
 
 
-from logging import WARNING
+from logging import WARNING, DEBUG, INFO
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
 from flwr.common import (
@@ -35,6 +35,7 @@ from flwr.common import (
 from flwr.common.logger import log
 from flwr.server.strategy.aggregate import aggregate, weighted_loss_avg
 
+from hfl_server_app.client_cluster_proxy import ClientClusterProxy
 from ..fog_manager import FogManager
 from ..fog_proxy import FogProxy
 from .strategy import Strategy
@@ -71,6 +72,7 @@ class FedAvg(Strategy):
         initial_parameters: Optional[Parameters] = None,
         fit_metrics_aggregation_fn: Optional[MetricsAggregationFn] = None,
         evaluate_metrics_aggregation_fn: Optional[MetricsAggregationFn] = None,
+        evaluate_metrics_cluster_aggregation_fn: Optional[MetricsAggregationFn] = None,
     ) -> None:
         """Federated Averaging strategy.
         Implementation based on https://arxiv.org/abs/1602.05629
@@ -123,6 +125,7 @@ class FedAvg(Strategy):
         self.initial_parameters = initial_parameters
         self.fit_metrics_aggregation_fn = fit_metrics_aggregation_fn
         self.evaluate_metrics_aggregation_fn = evaluate_metrics_aggregation_fn
+        self.evaluate_metrics_cluster_aggregation_fn = evaluate_metrics_cluster_aggregation_fn
 
     def __repr__(self) -> str:
         rep = f"FedAvg(accept_failures={self.accept_failures})"
@@ -174,6 +177,7 @@ class FedAvg(Strategy):
         fogs = fog_manager.sample(num_fogs=sample_size, min_num_fogs=min_num_fogs)
 
         # Return fog/config pairs
+        # fit_ins はすべてのフォグで共通  (= グローバルモデルで更新)
         return [(fog, fit_ins) for fog in fogs]
 
     def configure_evaluate(
@@ -203,8 +207,8 @@ class FedAvg(Strategy):
     def aggregate_fit(
         self,
         server_round: int,
-        results: List[Tuple[FogProxy, FitRes]],
-        failures: List[Union[Tuple[FogProxy, FitRes], BaseException]],
+        results: List[Tuple[ClientClusterProxy, FitRes]],
+        failures: List[Union[Tuple[ClientClusterProxy, FitRes], BaseException]],
     ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
         """Aggregate fit results using weighted average."""
         if not results:
@@ -212,7 +216,11 @@ class FedAvg(Strategy):
         # Do not aggregate if there are failures and failures are not accepted
         if not self.accept_failures and failures:
             return None, {}
-
+        
+        # Information about the each cluster samples
+        # for cluster, res in results:
+            # log(DEBUG, f"Fog:{cluster.fid}, Cluster:{cluster.clsid} received {res.num_examples} examples")
+            
         # Convert results
         weights_results = [
             (parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples)
@@ -223,8 +231,15 @@ class FedAvg(Strategy):
 
         # Aggregate custom metrics if aggregation fn was provided
         metrics_aggregated = {}
+        fit_metrics = {}
         if self.fit_metrics_aggregation_fn:
-            fit_metrics = {fog.fid: res.metrics for fog, res in results}
+            # fit_metrics = {cluster.fid: res.metrics for cluster, res in results}
+            for cluster, res in results:
+                if cluster.fid not in fit_metrics:
+                    fit_metrics[cluster.fid] = {}
+                fit_metrics[cluster.fid][cluster.clsid] = res.metrics
+
+            # 正直やらなくていい気がする、これは重要ではない
             metrics_aggregated = self.fit_metrics_aggregation_fn(fit_metrics)
         elif server_round == 1:  # Only log this warning once
             log(WARNING, "No fit_metrics_aggregation_fn provided")
@@ -251,6 +266,12 @@ class FedAvg(Strategy):
                 for _, evaluate_res in results
             ]
         )
+        # log(
+        #     INFO,
+        #     "round %s: loss_aggregated is completed %s",
+        #     server_round,
+        #     loss_aggregated,
+        # )
 
         # Aggregate custom metrics if aggregation fn was provided
         metrics_aggregated = {}
@@ -259,5 +280,67 @@ class FedAvg(Strategy):
             metrics_aggregated = self.evaluate_metrics_aggregation_fn(eval_metrics)
         elif server_round == 1:  # Only log this warning once
             log(WARNING, "No evaluate_metrics_aggregation_fn provided")
+
+        # log(
+        #     INFO,   
+        #     "round %s: aggregate_evaluate is completed in aggregate_evaluate %s",
+        #     server_round,
+        #     metrics_aggregated,
+        # )
+
+        return loss_aggregated, metrics_aggregated
+    
+    def aggregate_cluster_evaluate(
+        self,
+        server_round: int,
+        results: List[Tuple[ClientClusterProxy, EvaluateRes]],
+        failures: List[Union[Tuple[ClientClusterProxy, EvaluateRes], BaseException]],
+    ) -> Tuple[Optional[float], Dict[str, Scalar]]:
+        
+        # DEBUG OK
+        # log(
+        #     INFO,
+        #     "round %s: start aggregate_cluster_evaluate",
+        #     server_round,
+        # )
+
+        if not results:
+            return None, {}
+        # Do not aggregate if there are failures and failures are not accepted
+        if not self.accept_failures and failures:
+            return None, {}
+
+        # Aggregate loss
+        # 加重平均による損失の集約
+        loss_aggregated = weighted_loss_avg(
+            [
+                (evaluate_res.num_examples, evaluate_res.loss)
+                for _, evaluate_res in results
+            ]
+        )
+
+        log(
+            INFO,   
+            "round %s: loss_aggregated in aggregate_cluster_evaluate is completed in aggregate_evaluate %s",
+            server_round,
+            loss_aggregated,
+        )
+
+        # Aggregate custom metrics if aggregation fn was provided
+        # カスタムメトリクスの集約
+        metrics_aggregated = {}
+        if self.evaluate_metrics_aggregation_fn:
+            # 
+            eval_metrics = [(res.num_examples, res.metrics) for _, res in results]
+            metrics_aggregated = self.evaluate_metrics_aggregation_fn(eval_metrics)
+        elif server_round == 1:  # Only log this warning once
+            log(WARNING, "No evaluate_metrics_fog_aggregation_fn provided")
+
+        log(
+            INFO,   
+            "round %s: metrics_aggregated in aggregate_cluster_evaluate is completed in aggregate_evaluate %s",
+            server_round,
+            metrics_aggregated,
+        )
 
         return loss_aggregated, metrics_aggregated

@@ -6,6 +6,8 @@ import random
 import warnings
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
+from logging import DEBUG, INFO
+from flwr.common.logger import log
 
 import numpy as np
 import torch
@@ -15,11 +17,14 @@ from flwr.client import Client
 from flwr.common import NDArrays, Parameters, Scalar, ndarrays_to_parameters
 from flwr.server import ServerConfig, SimpleClientManager
 from fog_app.fog import Fog
-from fog_app.ray_fog import RayFlowerDMLFogProxy, RayFlowerFogProxy
+from fog_app.ray_fog import RayFlowerDMLFogProxy, RayFlowerFogProxy, RayFlowewrClusterDMLFogProxy
 from fog_app.strategy.f2mkd import F2MKD
+from fog_app.strategy.f2mkdc import F2MKDC
 from fog_app.strategy.fedavg import FedAvg as FogFedAvg
+from client_app.dml_client_cluster import FlowerRayClientClusterProxy
 from hfl_server_app.base_hflserver import HFLServer
 from hfl_server_app.fog_manager import SimpleFogManager
+from hfl_server_app.client_cluster_proxy import ClientClusterProxy
 from hfl_server_app.strategy.fedavg import FedAvg as HFLServerFedAvg
 from models.base_model import Net
 from models.driver import test
@@ -35,7 +40,7 @@ parser.add_argument(
     "--strategy",
     type=str,
     required=True,
-    choices=["F2MKD", "FedFog"],
+    choices=["F2MKD", "FedFog", "F2MKDC"],
     help="FL config: aggregation strategy",
 )
 parser.add_argument(
@@ -126,8 +131,10 @@ def main():
     dataset_config = configure_dataset(dataset_name=args.dataset, target=args.target)
     server_net: Net = load_model(
         name=args.server_model,
+        # 入力次元数を指定
         input_spec=dataset_config["input_spec"],
-        out_dims=dataset_config["out_dims"],
+        # 出力次元数を指定
+        out_dims=dataset_config["out_dims"]
     )
     server_init_parameters: Parameters = ndarrays_to_parameters(
         server_net.get_weights()
@@ -170,7 +177,7 @@ def main():
 
     def eval_config(server_round: int) -> Dict[str, Scalar]:
         config = {
-            "batch_size": 1000,
+            "batch_size": 1000, # 1クライアント10サンプル * 100だと思われる
             "server_round": server_round,
         }
         return config
@@ -192,6 +199,51 @@ def main():
             return results["loss"], {"accuracy": results["acc"]}
 
         return evaluate
+    
+    def evaluate_metrics_cluster_aggregation_fn(
+        eval_metrics: List[Tuple[int, Dict[str, Any]]]
+    ):
+        log(
+            INFO,
+            "hfl_simulation/eval_metrics: (%s)",
+            eval_metrics,
+        )
+
+        # metrics_aggregated の初期化
+        metrics_aggregated = {
+            "accuracy": {},
+            "loss": {}
+        }
+
+        # 各 metrics の処理
+        for _, metrics in eval_metrics:
+            log(
+                INFO,
+                "hfl_simulation/metrics: (%s)",
+                metrics,
+            )
+
+            fid = metrics["fid"]
+            clsid = metrics["clsid"]
+
+            # accuracy の追加
+            if fid not in metrics_aggregated["accuracy"]:
+                metrics_aggregated["accuracy"][fid] = {}
+            metrics_aggregated["accuracy"][fid][clsid] = metrics["acc"]
+
+            # loss の追加
+            if fid not in metrics_aggregated["loss"]:
+                metrics_aggregated["loss"][fid] = {}
+            metrics_aggregated["loss"][fid][clsid] = metrics["loss"]
+
+        log(
+            INFO,
+            "hfl_simulation/metrics_aggregated: (%s)",
+            metrics_aggregated,
+        )
+
+        return metrics_aggregated
+
 
     def evaluate_metrics_server_aggregation_fn(
         eval_metrics: List[Tuple[int, Dict[str, Any]]]
@@ -224,6 +276,7 @@ def main():
         on_fit_config_fn=fit_config,
         on_evaluate_config_fn=eval_config,
         evaluate_metrics_aggregation_fn=evaluate_metrics_server_aggregation_fn,
+        evaluate_metrics_cluster_aggregation_fn=evaluate_metrics_cluster_aggregation_fn,
         initial_parameters=server_init_parameters,
     )
 
@@ -281,6 +334,50 @@ def main():
                 client_init_parameters=client_init_parameters,
             )
 
+    elif args.strategy == "F2MKDC": 
+        fog_strategy = F2MKDC(
+            fraction_fit=args.fraction_fit,
+            fraction_evaluate=1,
+            min_fit_clients=args.num_clients,
+            min_evaluate_clients=args.num_clients,
+            min_available_clients=args.num_clients,
+            evaluate_fn=get_eval_fn(server_net, args.dataset, args.target),
+            evaluate_metrics_aggregation_fn=evaluate_metrics_fog_aggregation_fn,
+            evaluate_metrics_cluster_aggregation_fn=evaluate_metrics_cluster_aggregation_fn,
+            on_fit_config_fn=fit_config,
+            on_evaluate_config_fn=eval_config,
+        )
+        log( # FedAvgと表示される(型？)
+            DEBUG,
+            "fog_strategy: %s",
+            fog_strategy,
+        )
+
+        def client_fn(cid: str) -> Client:
+            return FlowerRayClient(cid, client_config)
+        
+        def client_cluster_fn(fid: str, clsid: str, client_manager: SimpleClientManager) -> ClientClusterProxy:    
+            return FlowerRayClientClusterProxy(
+                fid=fid,
+                clsid=clsid,
+                config=fog_config,
+                client_manager=client_manager(),
+                strategy=fog_strategy,
+            )
+            
+        def fog_fn(fid: str) -> Fog:
+            # clusterの数だけ
+            client_manager = SimpleClientManager()
+            return RayFlowewrClusterDMLFogProxy(
+                fid=fid,
+                config=fog_config,
+                client_manager=client_manager,
+                client_cluster_fn=client_cluster_fn,
+                client_fn=client_fn,
+                strategy=fog_strategy,
+                client_init_parameters=client_init_parameters,
+            )
+
     else:
         raise NotImplementedError(f"Strategy class {args.strategy} is not supported.")
 
@@ -288,15 +385,16 @@ def main():
     hfl_server = HFLServer(
         fog_manager=fog_manager,
         strategy=server_strategy,
+        save_dir=args.save_dir,
     )
-    client_resources = {"num_cpus": 2}
+    client_resources = {"num_cpus": 1}
     ray_config = {"include_dashboard": False, "address": "auto"}
 
     hist = start_simulation(
-        client_fn=client_fn,
+        client_fn=client_fn, # 不要
         fog_fn=fog_fn,
         num_fogs=args.num_fogs,
-        client_resources=client_resources,
+        client_resources=client_resources, # 不要
         hfl_server=hfl_server,
         config=server_config,
         ray_init_args=ray_config,
@@ -315,6 +413,16 @@ def main():
     save_path = Path(args.save_dir) / "metrics" / "accuracies_centralized.json"
     with open(save_path, "w") as f:
         json.dump(accuracies_centralized, f)
+
+    losses_cluster_model = sorted(hist.metrics_cluster_model["loss"].items())
+    save_path = Path(args.save_dir) / "metrics" / "losses_cluster_model.json"
+    with open(save_path, "w") as f:
+        json.dump(losses_cluster_model, f)
+
+    accuracies_cluster_model = sorted(hist.metrics_cluster_model["accuracy"].items())
+    save_path = Path(args.save_dir) / "metrics" / "accuracies_cluster_model.json"
+    with open(save_path, "w") as f:
+        json.dump(accuracies_cluster_model, f)
 
     # loss of client models
     losses_distributed = sorted(hist.metrics_distributed["loss"].items())
