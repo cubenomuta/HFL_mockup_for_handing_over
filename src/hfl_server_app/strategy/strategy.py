@@ -5,6 +5,7 @@ from flwr.common import EvaluateIns, EvaluateRes, FitIns, FitRes, Parameters, Sc
 
 from ..fog_manager import FogManager
 from ..fog_proxy import FogProxy
+from ..client_cluster_proxy import ClientClusterProxy
 
 
 class Strategy(ABC):
@@ -50,8 +51,8 @@ class Strategy(ABC):
     def aggregate_fit(
         self,
         server_round: int,
-        results: List[Tuple[FogProxy, FitRes]],
-        failures: List[Union[Tuple[FogProxy, FitRes], BaseException]],
+        results: List[Tuple[ClientClusterProxy, FitRes]],
+        failures: List[Union[Tuple[ClientClusterProxy, FitRes], BaseException]],
     ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
         """Aggregate training results.
         Parameters
