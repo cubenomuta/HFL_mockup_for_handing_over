@@ -1,6 +1,8 @@
 import sys
 from typing import Any, Dict
 
+from logging import DEBUG, INFO, WARNING
+from flwr.common.logger import log
 import ray
 import torch
 import torch.nn as nn
@@ -71,6 +73,11 @@ def train(
 def test(
     net: Net, testloader: DataLoader, steps: int = None, device: str = "cpu"
 ) -> Dict[str, Scalar]:
+    # DEBUG
+    # log(
+    #     INFO,
+    #     "start test"
+    # )
     net.to(device)
     criterion = torch.nn.CrossEntropyLoss()
     correct, total, steps, loss = 0, 0, 0, 0.0
@@ -97,10 +104,11 @@ def evaluate_parameters(
     # dataset configuration
     testset = load_federated_dataset(
         dataset_name=config["dataset_name"],
-        id=config["fid"],
+        fid=config["fid"],
+        clsid=config["clsid"],
         train=False,
         target=config["target_name"],
-        attribute="fog",
+        attribute="cluster",
     )
     # model configuration
     dataset_config = configure_dataset(
@@ -122,7 +130,7 @@ def evaluate_parameters(
         batch_size=batch_size,
         shuffle=False,
     )
-    device = torch.device("cuda: 0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     result = test(net=net, testloader=testloader, device=device)
     result["num_examples"] = len(testset)

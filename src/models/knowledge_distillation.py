@@ -9,6 +9,8 @@ from flwr.common import Parameters, ndarrays_to_parameters, parameters_to_ndarra
 from torch.utils.data import DataLoader
 from utils.utils_dataset import configure_dataset, load_federated_dataset
 from utils.utils_model import load_model
+from logging import DEBUG, INFO
+from flwr.common.logger import log
 
 from .base_model import Net
 
@@ -86,10 +88,11 @@ def distillation_parameters(
     # dataset configuration
     dataset = load_federated_dataset(
         dataset_name=config["dataset_name"],
-        id=config["fid"],
+        fid=config["fid"],
+        clsid=config["clsid"],
         train=True,
         target=config["target_name"],
-        attribute="fog",
+        attribute="cluster",
     )
     # model configuration
     dataset_config = configure_dataset(
@@ -153,14 +156,21 @@ def distillation_multiple_parameters(
     student_parameters: Parameters,
     config: Dict[str, Any],
 ) -> Parameters:
+    # log(
+    #     INFO,
+    #     "distillation_multiple_parameters() on fog fid: %s clsid: %s started",
+    #     config["fid"],
+    #     config["clsid"],
+    # )
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     # dataset configuration
     dataset = load_federated_dataset(
         dataset_name=config["dataset_name"],
-        id=config["fid"],
+        fid=config["fid"],
+        clsid=config["clsid"],
         train=True,
         target=config["target_name"],
-        attribute="fog",
+        attribute="cluster",
     )
     # model configuration
     dataset_config = configure_dataset(

@@ -7,6 +7,7 @@ from dataset_app import (
     CentralizedCelebaVerification,
     CIFAR10_truncated,
     CIFAR100_truncated,
+    FashionMNIST_client_truncated, #追加
     FashionMNIST_truncated,
     FederatedCelebaVerification,
     FederatedUsbcamVerification,
@@ -90,9 +91,10 @@ def load_centralized_dataset(
     return dataset
 
 
-def load_federated_dataset(
+def load_federated_dataset( # クラスタ用
     dataset_name: str,
-    id: str,
+    fid: str = None,
+    clsid: str = None,
     train: bool = True,
     target: str = None,
     attribute: str = None,
@@ -128,6 +130,100 @@ def load_federated_dataset(
             ]
         )
         dataset = FashionMNIST_truncated(
+            root=DATA_ROOT,
+            fid=fid,
+            clsid=clsid,
+            train=train,
+            target=target,
+            attribute=attribute,
+            transform=transform,
+            download=download,
+        )
+    elif dataset_name == "CIFAR10":
+        transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    (0.4914, 0.4822, 0.4465),
+                    (0.2023, 0.1994, 0.2010),
+                ),
+            ]
+        )
+        dataset = CIFAR10_truncated(
+            root=DATA_ROOT,
+            id=id,
+            train=train,
+            target=target,
+            attribute=attribute,
+            transform=transform,
+            download=download,
+        )
+    elif dataset_name == "CIFAR100":
+        transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    (0.5070, 0.4865, 0.4409),
+                    (0.2673, 0.2564, 0.2762),
+                ),
+            ]
+        )
+        dataset = CIFAR100_truncated(
+            root=DATA_ROOT,
+            id=id,
+            train=train,
+            target=target,
+            attribute=attribute,
+            transform=transform,
+            download=download,
+        )
+    elif dataset_name == "CelebA":
+        assert target is not None
+        dataset = FederatedCelebaVerification(id=id, train=train, target=target)
+    elif dataset_name == "usbcam":
+        dataset = FederatedUsbcamVerification(id=id, train=train)
+    else:
+        raise NotImplementedError(f"{dataset_name} is not supported")
+    return dataset
+
+def load_federated_client_dataset( # クライアント用
+    dataset_name: str,
+    id: str = None,
+    train: bool = True,
+    target: str = None,
+    attribute: str = None,
+    download: bool = False,
+) -> Dataset:
+    if dataset_name == "MNIST":
+        transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    (0.5,),
+                    (0.5,),
+                ),
+            ]
+        )
+        dataset = MNIST_truncated(
+            root=DATA_ROOT,
+            id=id,
+            train=train,
+            target=target,
+            attribute=attribute,
+            transform=transform,
+            download=download,
+        )
+    elif dataset_name == "FashionMNIST":
+        transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    (0.5,),
+                    (0.5,),
+                ),
+            ]
+        )
+        dataset = FashionMNIST_client_truncated(
             root=DATA_ROOT,
             id=id,
             train=train,
@@ -182,7 +278,6 @@ def load_federated_dataset(
     else:
         raise NotImplementedError(f"{dataset_name} is not supported")
     return dataset
-
 
 def configure_dataset(dataset_name: str, target: str = None) -> Dict[str, Scalar]:
     if dataset_name == "MNIST":

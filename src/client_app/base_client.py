@@ -5,6 +5,7 @@ from os import stat
 from typing import Dict
 
 import ray
+import json
 import torch
 from flwr.client import Client, NumPyClient
 from flwr.common import (
@@ -29,6 +30,7 @@ from torch.utils.data import DataLoader
 from utils.utils_dataset import (
     configure_dataset,
     load_federated_dataset,
+    load_federated_client_dataset,
     split_validation,
 )
 from utils.utils_model import load_model
@@ -40,13 +42,24 @@ class FlowerClient(Client):
     def __init__(self, cid: str, config: Dict[str, str]):
         self.cid = cid
         self.fid = str(int(self.cid) // 100)
-        self.attribute = "client_exp"
+        self.clsid = None
+        self.attribute = "client"
+
+        # clsid の取得
+        # log(INFO, "get clsid at FlowerRayClient cid: %s", cid)
+        file_path = "./data/FashionMNIST/partitions/noniid-label2_part-noniid/client/clustered_client_list.json"
+        with open(file_path, 'r') as file:
+            data = json.load(file)
+        cluster_data = data[self.fid]
+        for clsid, cids in cluster_data.items():
+            if int(self.cid) in cids:
+                self.clsid = clsid
 
         # dataset configuration
         self.dataset = config["dataset_name"]
         self.target = config["target_name"]
 
-        self.trainset = load_federated_dataset(
+        self.trainset = load_federated_client_dataset(
             dataset_name=self.dataset,
             id=self.cid,
             train=True,
@@ -59,10 +72,11 @@ class FlowerClient(Client):
         # )
         self.testset = load_federated_dataset(
             dataset_name=self.dataset,
-            id=self.fid,
+            fid=self.fid,
+            clsid=self.clsid,
             train=False,
             target=self.target,
-            attribute="fog",
+            attribute="cluster",
         )
 
         # model configuration
