@@ -273,6 +273,19 @@ def record_net_data_stats(y_train, net_dataidx_map):
     print(str(net_cls_counts))
     return net_cls_counts
 
+def create_json_data_stats(y_train, net_dataidx_map, save_dir, file_name):
+    net_cls_counts = {}
+    for net_i, dataidx in net_dataidx_map.items():
+        unq, unq_cnt = np.unique(y_train[dataidx], return_counts=True)
+        tmp = {int(unq[i]): int(unq_cnt[i]) for i in range(len(unq))}  # JSONに書き込むためにintに変換
+        net_cls_counts[net_i] = tmp
+    
+    print(str(net_cls_counts))
+    
+    write_json(net_cls_counts, save_dir, file_name)
+    
+    return net_cls_counts
+
 
 def sample_without_replacement(
     distribution: np.ndarray,
@@ -320,14 +333,14 @@ def exclude_classes_and_normalize(
     return distribution
 
 
-def record_net_data_stats(y_train, net_dataidx_map):
-    net_cls_counts = {}
-    for net_i, dataidx in net_dataidx_map.items():
-        unq, unq_cnt = np.unique(y_train[dataidx], return_counts=True)
-        tmp = {unq[i]: unq_cnt[i] for i in range(len(unq))}
-        net_cls_counts[net_i] = tmp
-    print(str(net_cls_counts))
-    return net_cls_counts
+# def record_net_data_stats(y_train, net_dataidx_map):
+#     net_cls_counts = {}
+#     for net_i, dataidx in net_dataidx_map.items():
+#         unq, unq_cnt = np.unique(y_train[dataidx], return_counts=True)
+#         tmp = {unq[i]: unq_cnt[i] for i in range(len(unq))}
+#         net_cls_counts[net_i] = tmp
+#     print(str(net_cls_counts))
+#     return net_cls_counts
 
 
 def write_json(json_data: Dict[str, List[np.ndarray]], save_dir: str, file_name: str):
