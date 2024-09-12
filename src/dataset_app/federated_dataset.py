@@ -1,5 +1,7 @@
 import json
 from pathlib import Path
+from flwr.common.logger import log
+from logging import INFO, DEBUG
 
 import numpy as np
 from PIL import Image
@@ -7,8 +9,90 @@ from torch.utils.data import Dataset
 from torchvision.datasets import CIFAR10, CIFAR100, MNIST, FashionMNIST
 from torchvision.transforms import transforms
 
-
+# クラスタ用
 class FashionMNIST_truncated(Dataset):
+    """
+    Copied and modified from
+    NIID-Bench
+    """
+
+    def __init__(
+        self,
+        root: str,
+        fid: str = None,
+        clsid: str = None,
+        train: bool = True,
+        target: str = None,
+        attribute: str = None, # cluster or client
+        transform=None,
+        target_transform=None,
+        download: bool = False,
+    ):
+        self.fid = fid
+        self.clsid = clsid
+        self.train = train
+        self.transform = transform
+        self.target_transform = target_transform
+        self.download = download
+
+        self.data_root = Path(root)
+        self.json_path = None
+        if target is not None and attribute is not None:
+            self.json_root = (
+                Path(root) / "FashionMNIST" / "partitions" / target / attribute
+            )
+            if self.train:
+                self.json_path = self.json_root / "train_data.json"
+            # clientはtest_data.jsonを作成していない -> 何で評価している？
+            # test用のロードはすべてattribute="fog"で行っている -> クライアントの評価はフォグが持つすべてのデータを使用している
+            else:
+                self.json_path = self.json_root / "test_data.json"
+
+        self.data, self.target = self.__build_truncated_dataset__()
+
+    def __build_truncated_dataset__(self):
+        fmnist_dataobj = FashionMNIST(
+            self.data_root,
+            self.train,
+            self.transform,
+            self.target_transform,
+            self.download,
+        )
+        data = fmnist_dataobj.data
+        target = fmnist_dataobj.targets
+
+        if self.json_path is not None:
+            with open(self.json_path, "r") as f:
+                json_data = json.load(f)
+            fog_data = json_data[self.fid]
+            data_idx = fog_data[self.clsid]
+            data = data[data_idx]
+            target = target[data_idx]
+
+        return data, target
+
+    def __getitem__(self, index):
+        """
+        Args:
+            index (int): Index
+        Returns:
+            tuple: (image, target) where target is index of the target class.
+        """
+        img, target = self.data[index], self.target[index]
+        img = Image.fromarray(img.numpy(), mode="L")
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return img, target
+
+    def __len__(self):
+        return len(self.data)
+
+class FashionMNIST_client_truncated(Dataset):
     """
     Copied and modified from
     NIID-Bench
