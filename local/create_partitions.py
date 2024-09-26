@@ -171,10 +171,13 @@ def main(args):
         client_test_json_data.update(updatedkey_test_json_data)
     print(f"client_train_json_data: {client_train_json_data.keys()}")
     print(f"client_test_json_data: {client_test_json_data.keys()}")
-    # save_dir = Path(args.save_dir) / "client"
-    # write_json(client_train_json_data, save_dir=save_dir, file_name="train_data")
+    save_dir = Path(args.save_dir) / "client"
+    write_json(client_train_json_data, save_dir=save_dir, file_name="train_data")
     # write_json(client_test_json_data, save_dir=save_dir, file_name="test_data")
     # print(f"{save_dir} create fog json file")
+    save_dir = Path(args.save_dir) / "fog"
+    write_json(fog_train_json_data, save_dir=save_dir, file_name="train_data")
+    write_json(fog_test_json_data, save_dir=save_dir, file_name="test_data")
 
     if (client_partitions == "part-noniid"):
         
@@ -185,7 +188,7 @@ def main(args):
 
         shuffled_train_clients = []
         shuffled_train_clients_per_fog = []
-        num_to_shuffle = num_clients // 5
+        num_to_shuffle = 60
         for clients in clients_per_fog:
             # 5分の1のクライアントを抽出してshuffled_clientsに追加
             extracted_clients = []
