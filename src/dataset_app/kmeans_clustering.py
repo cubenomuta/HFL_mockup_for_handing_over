@@ -22,11 +22,11 @@ def save_json_file(data: dict, file_path: str) -> None:
         json.dump(data, f, default=convert)
 
 
-def kmeans_clustering(data: dict, cluster_count: int = 10, step: int = 100) -> dict:
+def kmeans_clustering(data: dict, cluster_count: int = 5, step: int = 100) -> dict:
     """クラスタリングを実行し、100個単位でフォグIDごとにクライアントをまとめる関数"""
     clustered_data = {}
 
-    for i in range(0, 1000, step):
+    for i in range(0, 500, step):
         print(f"\nフォグサーバ範囲 {i}~{i + step - 1}")
         
         # 現在のフォグサーバ範囲のデータを取得
@@ -68,7 +68,7 @@ def kmeans_clustering(data: dict, cluster_count: int = 10, step: int = 100) -> d
     return sorted_clustered_data
 
 
-def run_clustering_process(input_file: str, output_file: str, cluster_count: int = 10):
+def run_clustering_process(input_file: str, output_file: str, cluster_count: int = 5):
     """クラスタリングプロセスを実行する関数"""
     data = load_json_file(input_file)
     print("元のデータ:", list(data.items())[:5])  # 最初の5件を表示
