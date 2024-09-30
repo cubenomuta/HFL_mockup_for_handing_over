@@ -131,9 +131,9 @@ def main(args):
         partitions=fog_partitions,
         seed=seed,
     )
-    # save_dir = Path(args.save_dir) / "fog"
-    # write_json(fog_train_json_data, save_dir=save_dir, file_name="train_data")
-    # write_json(fog_test_json_data, save_dir=save_dir, file_name="test_data")
+    save_dir = Path(args.save_dir) / "fog"
+    write_json(fog_train_json_data, save_dir=save_dir, file_name="train_data")
+    write_json(fog_test_json_data, save_dir=save_dir, file_name="test_data")
 
     client_train_json_data = {}
     client_test_json_data = {}
@@ -167,9 +167,12 @@ def main(args):
         }
         client_train_json_data.update(updatedkey_train_json_data)
         client_test_json_data.update(updatedkey_test_json_data)
-    # print(client_train_json_data.keys())
-    # save_dir = Path(args.save_dir) / "client"
-    # write_json(client_train_json_data, save_dir=save_dir, file_name="train_data")
+    print(client_train_json_data.keys())
+    save_dir = Path(args.save_dir) / "client"
+    write_json(client_train_json_data, save_dir=save_dir, file_name="train_data")
+    write_json(client_test_json_data, save_dir=save_dir, file_name="test_data")
+    create_json_data_stats(y_train, client_train_json_data, save_dir=save_dir, file_name=f"client_train_data_stats")
+
 
     if (client_partitions == "part-noniid"):
 
@@ -190,9 +193,9 @@ def main(args):
             #     for client in extracted_clients:
             #         clients.remove(client) # フォグ0のクライアントを削除
             """ フォグ半分を置き換える場合 """
-            if fid < num_fogs // 2:
-                for client in extracted_clients:
-                    clients.remove(client) # 半分のフォグのクライアントを削除
+            # if fid < num_fogs // 2:
+            for client in extracted_clients:
+                clients.remove(client) # 半分のフォグのクライアントを削除
             shuffled_train_clients_per_fog.append(clients)
 
         random.shuffle(shuffled_train_clients)
@@ -204,9 +207,9 @@ def main(args):
         #             shuffled_train_clients_per_fog[fid].append(shuffled_train_clients.pop())
         """ フォグ半分を置き換える場合 """
         for fid in range(num_fogs):
-            if fid < num_fogs // 2:
-               for i in range(num_to_shuffle):
-                    shuffled_train_clients_per_fog[fid].append(shuffled_train_clients.pop())
+            # if fid < num_fogs // 2:
+            for i in range(num_to_shuffle):
+                shuffled_train_clients_per_fog[fid].append(shuffled_train_clients.pop())
 
         flattened_train_cid_list = [item for sublist in shuffled_train_clients_per_fog for item in sublist] 
 
@@ -247,20 +250,20 @@ def main(args):
         record_net_data_stats(y_train, fog_train_json_data)
         print(f"fog record net data stats after update")
         record_net_data_stats(y_train, fog_updatedkey_train_json_data)
-        # print(f"client record net data stats")
-        # record_net_data_stats(y_train, client_train_json_data)
-        # print(f"client record net data stats after update")
-        # record_net_data_stats(y_train, shuffledkey_client_train_json_data)
+        print(f"client record net data stats")
+        record_net_data_stats(y_train, client_train_json_data)
+        print(f"client record net data stats after update")
+        record_net_data_stats(y_train, shuffledkey_client_train_json_data)
 
         print("テストデータの統計情報")
         print(f"fog record net data stats")
         record_net_data_stats(y_test, fog_test_json_data)
         print(f"fog record net data stats after update")
         record_net_data_stats(y_test, fog_updatedkey_test_json_data)
-        # print(f"client record net data stats")
-        # record_net_data_stats(y_test, client_test_json_data)
-        # print(f"client record net data stats after update")
-        # record_net_data_stats(y_test, shuffledkey_client_test_json_data)
+        print(f"client record net data stats")
+        record_net_data_stats(y_test, client_test_json_data)
+        print(f"client record net data stats after update")
+        record_net_data_stats(y_test, shuffledkey_client_test_json_data)
 
         save_dir = Path(args.save_dir) / "fog"
         print(f"create test json file at {save_dir}")
@@ -271,11 +274,26 @@ def main(args):
         write_json(shuffledkey_client_test_json_data, save_dir=save_dir, file_name=f"test_data")
         create_json_data_stats(y_train, shuffledkey_client_train_json_data, save_dir=save_dir, file_name=f"client_train_data_stats")
 
+    shuffledkey_client_train_json_data = {}
+    shuffledkey_client_test_json_data = {}
+    shuffledkey_client_train_json_data.update(client_train_json_data)
+    shuffledkey_client_test_json_data.update(client_test_json_data)
+
+    print("フォグ訓練データの統計情報")
+    print(f"fog record net data stats")
+    record_net_data_stats(y_train, fog_train_json_data)
+    # print(f"fog record net data stats after update")
+    # record_net_data_stats(y_train, fog_updatedkey_train_json_data)
+    print(f"client record net data stats")
+    record_net_data_stats(y_train, client_train_json_data)
+    # print(f"client record net data stats after update")
+    # record_net_data_stats(y_train, shuffledkey_client_train_json_data)
+
     # implement clustering
     save_dir = Path(args.save_dir) / "client"
     input_file_path = save_dir / "client_train_data_stats.json"
     output_file_path = save_dir / "clustered_client_list.json"
-    run_clustering_process(input_file=input_file_path, output_file=output_file_path, cluster_count=10)
+    run_clustering_process(input_file=input_file_path, output_file=output_file_path, cluster_count=5)
 
     # make cluster train_data.json
     with open(output_file_path, 'r') as f:

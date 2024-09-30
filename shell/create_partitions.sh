@@ -3,7 +3,7 @@
 . ./shell/path.sh
 
 # FL system configuration
-num_fogs=10
+num_fogs=5
 num_clients=100
 
 # dataset configuration
