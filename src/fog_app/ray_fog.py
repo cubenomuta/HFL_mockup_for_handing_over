@@ -269,50 +269,60 @@ class RayFlowewrClusterDMLFogProxy(RayFlowerFogProxy):
 
         self.set_max_workers(max_workers=len(self.clsids))
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            submitted_fs = {
-                executor.submit(
-                    self.fit_client_cluster, 
-                    clusters_instructions[clsid], # Tuple[ClientClusterProxy, FitIns]
-                    clients_instructions, # List[Tuple[ClientProxy, FitIns]]
-                    timeout
-                )
-                for clsid, clients_instructions in clients_per_cluster_instructions.items()
-            }
-            finished_fs, _ = concurrent.futures.wait(
-              fs=submitted_fs,
-              timeout=None,  # Handled in the respective communication stack
-            )
-        
-        # DEBUG OK
-        # log(
-        #     DEBUG,
-        #     "finished fit_client_cluster in FogProxy.fit() fid: %s",
-        #     self.fid,
-        # )
+        # ray worker killed対策
+        # with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+        #     submitted_fs = {
+        #         executor.submit(
+        #             self.fit_client_cluster, 
+        #             clusters_instructions[clsid], # Tuple[ClientClusterProxy, FitIns]
+        #             clients_instructions, # List[Tuple[ClientProxy, FitIns]]
+        #             timeout
+        #         )
+        #         for clsid, clients_instructions in clients_per_cluster_instructions.items()
+        #     }
+        #     finished_fs, _ = concurrent.futures.wait(
+        #       fs=submitted_fs,
+        #       timeout=None,  # Handled in the respective communication stack
+        #     )
 
         results: List[Tuple[ClientClusterProxy, FitRes]] = []
         failures: List[Union[Tuple[ClientClusterProxy, FitRes], BaseException]] = []
-        for future in finished_fs:
-            # DEBUG
-            # log(
-            #     INFO,
-            #     "_handle_finished_future_after_fit implement in fit() on fog fid=%s, results: %s, failures: %s",
-            #     self.fid,
-            #     len(results),
-            #     len(failures),
-            # )
-            self._handle_finished_future_after_fit(
-                future=future, results=results, failures=failures
-            )
-        # DEBUG NO -> not display
-        # log(
-        #     INFO,
-        #     "FogProxy.fit() on fog fid=%s: received %s results and %s failures",
-        #     self.fid,
-        #     len(results),
-        #     len(failures),
-        # )
+
+        for clsid, clients_instructions in clients_per_cluster_instructions.items():
+            try:
+                pre_result: Tuple[ClientClusterProxy, Tuple[FitRes, Dict[str, Parameters]]] = self.fit_client_cluster(
+                    clusters_instructions[clsid],  # Tuple[ClientClusterProxy, FitIns]
+                    clients_instructions,          # List[Tuple[ClientProxy, FitIns]]
+                    timeout
+                )
+
+                # 結果からクラスターと結果情報を取得
+                cluster, res, client_parameters_dict = pre_result
+
+                result = (cluster, res)
+
+                # クラスターパラメータの更新
+                self.cluster_parameters_dict[cluster.clsid] = res.parameters
+
+                # クライアントパラメータの更新
+                for cid, client_parameters in client_parameters_dict.items():
+                    self.client_parameters_dict[cid] = client_parameters
+
+                # 結果のステータスコードを確認
+                if res.status.code == Code.OK:
+                    results.append(result)
+                else:
+                    # ステータスコードがOKでない場合は失敗リストに追加
+                    failures.append((cluster, res))
+
+            except Exception as e:
+                # 例外発生時は失敗リストに追加
+                failures.append(e)
+
+        # for future in finished_fs:
+        #     self._handle_finished_future_after_fit(
+        #         future=future, results=results, failures=failures
+        #     )
         return results, failures
     
     def _handle_finished_future_after_fit(
@@ -322,13 +332,6 @@ class RayFlowewrClusterDMLFogProxy(RayFlowerFogProxy):
         failures: List[Union[Tuple[ClientClusterProxy, FitRes], BaseException]],
     ) -> None:
         """Convert finished future into either a result or a failure."""
-        # DEBUG # Not display
-        # log(
-        #     INFO,
-        #     "_handle_finished_future_after_fit is called at fid: %s",
-        #     self.fid,
-        # )
-        # Check if there was an exception
         failure = future.exception()
         if failure is not None:
             failures.append(failure)
@@ -364,14 +367,6 @@ class RayFlowewrClusterDMLFogProxy(RayFlowerFogProxy):
         """Refine parameters on a single cluster."""
         cluster, ins = cluster_instructions
         fit_res, client_parameters_dict = cluster.fit(ins=ins, client_instructions=clients_instructions, timeout=timeout)
-        # DEBUG
-        # log(
-        #     INFO, 
-        #     "fit_client_cluster() on fog fid=%s clsid=%s: received result num_cients=%s",
-        #     self.fid,
-        #     cluster.clsid,
-        #     len(client_parameters_dict)
-        # )
         return cluster, fit_res, client_parameters_dict
     
     def evaluate(self, ins: EvaluateIns, timeout: Optional[float]) -> Tuple[EvaluateRes, EvaluateRes]:
@@ -394,31 +389,11 @@ class RayFlowewrClusterDMLFogProxy(RayFlowerFogProxy):
             client_cluster_manager=self.client_cluster_manager,
         )
 
-        log(# OK
-            INFO,
-            "cluster_instructions in fog.evaluate() on fog fid=%s: strategy sampled %s cluster (out of %s)",
-            self.fid,
-            len(clusters_instructions),
-            len(self.clsids),
-        )
-
         client_instructions = self.strategy.configure_evaluate(
             server_round=server_round,
             client_parameters_dict=self.client_parameters_dict,
             config=evaluate_config,
             client_manager=self._client_manager,
-        )
-
-        if not client_instructions:
-            log(INFO, "evaluate_round %s: no clients selected, cancel", server_round)
-            return None
-
-        log( # OK
-            INFO,
-            "evaluate() on fog fid=%s: strategy sampled %s clients (out of %s)",
-            self.fid,
-            len(client_instructions),
-            self._client_manager.num_available(),
         )
 
         clients_per_cluster_instructions = {clsid: [] for clsid in self.cluster_dict.keys()}
@@ -436,69 +411,83 @@ class RayFlowewrClusterDMLFogProxy(RayFlowerFogProxy):
                     # EvaluateInsにclsidを追加
                     # evaluate_ins.config = evaluate_cluster_config
 
-        # DEBUG OK
-        # log(
-        #     DEBUG,
-        #     "num of custer in fog fid=%s: %s",
-        #     self.fid,
-        #     len(clients_per_cluster_instructions),
-        # )
-
         self.set_max_workers(max_workers=len(client_instructions))
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            submitted_fs = {
-                executor.submit(
-                    self.evaluate_client_cluster, 
-                    clusters_instructions[clsid], # Tuple[ClientClusterProxy, FitIns]
-                    client_instructions, # List[Tuple[ClientProxy, FitIns]]
-                    evaluate_config,
-                    self.cluster_parameters_dict[clsid],
-                    timeout
-                )
-                for clsid, client_instructions in clients_per_cluster_instructions.items()
-            }
-            finished_fs, _ = concurrent.futures.wait(
-              fs=submitted_fs,
-              timeout=None,  # Handled in the respective communication stack
-            )
+        # 並列実行
+        # with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+        #     submitted_fs = {
+        #         executor.submit(
+        #             self.evaluate_client_cluster, 
+        #             clusters_instructions[clsid], # Tuple[ClientClusterProxy, FitIns]
+        #             client_instructions, # List[Tuple[ClientProxy, FitIns]]
+        #             evaluate_config,
+        #             self.cluster_parameters_dict[clsid],
+        #             timeout
+        #         )
+        #         for clsid, client_instructions in clients_per_cluster_instructions.items()
+        #     }
+        #     finished_fs, _ = concurrent.futures.wait(
+        #       fs=submitted_fs,
+        #       timeout=None,  # Handled in the respective communication stack
+        #     )
 
-        # DEBUG OK evaluate rouond fnished at here
-        # log(
-        #     INFO,
-        #     "finished evaluate_client_cluster in FogProxy.evaluate() fid: %s",
-        #     self.fid,
-        # )
-
+        # シリアル実行（ray worker killed対策）
         # すべてのクラスタの評価結果を集約
         cluster_results: List[Tuple[ClientClusterProxy, EvaluateRes]] = []
         cluster_failures: List[Union[Tuple[ClientClusterProxy, EvaluateRes], BaseException]] = []
         results: List[Tuple[ClientProxy, EvaluateRes]] = []
         failures: List[Union[Tuple[ClientProxy, EvaluateRes], BaseException]] = []
-        for future in finished_fs:
-            self._handle_finished_future_after_cluster_evaluate(
-                future=future, cluster_results=cluster_results, cluster_failures=cluster_failures, results=results, failures=failures
-            )
+        # for future in finished_fs:
+        #     self._handle_finished_future_after_cluster_evaluate(
+        #         future=future, cluster_results=cluster_results, cluster_failures=cluster_failures, results=results, failures=failures
+        #     )
 
-        # DEBUG OK
-        # log(
-        #     INFO,
-        #     "evaluate() on fog fid=%s: received %s results and %s failures",
-        #     self.fid,
-        #     len(results),
-        #     len(failures),
-        # )
+        for clsid, client_instructions in clients_per_cluster_instructions.items():
+            try:
+                # `evaluate_client_cluster`のシングルスレッド実行
+                res: Tuple[
+                    ClientClusterProxy, 
+                    List[Tuple[ClientProxy, EvaluateRes]],
+                    List[Union[Tuple[ClientProxy, EvaluateRes], BaseException]],
+                    EvaluateRes
+                ] = self.evaluate_client_cluster(
+                    clusters_instructions[clsid],  # Tuple[ClientClusterProxy, FitIns]
+                    client_instructions,           # List[Tuple[ClientProxy, FitIns]]
+                    evaluate_config,
+                    self.cluster_parameters_dict[clsid],
+                    timeout
+                )
+
+                # 結果の取得と処理
+                cluster, cls_results, cls_failures, cluster_model_evaluateres = res
+
+                # クラスターの評価結果のステータスを確認
+                if cluster_model_evaluateres.status.code == Code.OK:
+                    cluster_results.append((cluster, cluster_model_evaluateres))
+                else:
+                    cluster_failures.append((cluster, cluster_model_evaluateres))
+
+                # 各クラスター内のクライアント結果を処理
+                for cls_result in cls_results:
+                    cluster, cls_res = cls_result
+                    if cls_res.status.code == Code.OK:
+                        results.append(cls_result)
+                    else:
+                        failures.append(cls_result)
+
+                # クラスター内の失敗を処理
+                for failure in cls_failures:
+                    failures.append(failure)
+            
+            except Exception as e:
+                # `evaluate_client_cluster`実行中に例外が発生した場合は失敗リストに追加
+                failures.append(e)
+
         # Aggregate evaluation results
         aggregated_result: Tuple[
             Optional[Parameters],
             Dict[str, Scalar],
         ] = self.strategy.aggregate_evaluate(server_round, results, failures)
-
-        log(
-            INFO,
-            "complete aggregate_evaluate() on fog fid=%s",
-            self.fid,
-        )
 
         cluster_aggregated_result: Tuple[
             Optional[Parameters],
@@ -507,20 +496,6 @@ class RayFlowewrClusterDMLFogProxy(RayFlowerFogProxy):
 
         loss_aggregated, metrics_aggregated = aggregated_result
         cluster_loss_aggregated, cluster_metrics_aggregated = cluster_aggregated_result
-
-        # DEBUG No
-        # log(
-        #     INFO,
-        #     "cluster_loss_aggregated: %s, cluster_metrics_aggregated: %s",
-        #     cluster_loss_aggregated,
-        #     cluster_metrics_aggregated
-        # )
-        # log(
-        #     INFO,
-        #     "loss_aggregated: %s, metrics_aggregated: %s",
-        #     loss_aggregated,
-        #     metrics_aggregated
-        # )
 
         # 各クラスタのバッチサイズを算出
         # fog_batch_size = int(ins.config["batch_size"])
@@ -554,12 +529,12 @@ class RayFlowewrClusterDMLFogProxy(RayFlowerFogProxy):
         # results: List[Tuple[ClientProxy, EvaluateRes]]
         # failures: List[Union[Tuple[ClientProxy, EvaluateRes], BaseException]]
         # cluster_result: Tuple[ClientClusterProxy, EvaluateRes]
-        log( # OK
-            INFO,
-            "start evaluate_client_cluster() on fog fid=%s clsid=%s",
-            self.fid,
-            cluster.clsid,
-        )
+        # log( # OK
+        #     INFO,
+        #     "start evaluate_client_cluster() on fog fid=%s clsid=%s",
+        #     self.fid,
+        #     cluster.clsid,
+        # )
         results, failures, cluster_model_evaluateres= cluster.evaluate(
             client_instructions=client_instructions,
             ins=ins,
@@ -614,12 +589,12 @@ class RayFlowewrClusterDMLFogProxy(RayFlowerFogProxy):
             else:
                 failures.append(cls_result)
 
-        log(
-            INFO,
-            "fid %s: the number of results: %s",
-            self.fid,
-            len(results),
-        )
+        # log(
+        #     INFO,
+        #     "fid %s: the number of results: %s",
+        #     self.fid,
+        #     len(results),
+        # )
             
         for failure in cls_failures:
             failures.append(failure)
@@ -687,16 +662,16 @@ class RayFlowerDMLFogProxy(RayFlowerFogProxy):
             config=ins.config,
             client_manager=self._client_manager,
         )
-        if not client_instructions:
-            log(INFO, "fit_round %s: no clients selected, cancel", server_round)
-            return None
-        log(
-            INFO,
-            "fit() on fog fid=%s: strategy sampled %s clients (out of %s)",
-            self.fid,
-            len(client_instructions),
-            self._client_manager.num_available(),
-        )
+        # if not client_instructions:
+        #     log(INFO, "fit_round %s: no clients selected, cancel", server_round)
+        #     return None
+        # log(
+        #     INFO,
+        #     "fit() on fog fid=%s: strategy sampled %s clients (out of %s)",
+        #     self.fid,
+        #     len(client_instructions),
+        #     self._client_manager.num_available(),
+        # )
         self.set_max_workers(max_workers=len(client_instructions))
 
         results, failures = fit_clients(
