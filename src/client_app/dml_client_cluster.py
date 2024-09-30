@@ -48,7 +48,7 @@ from flwr.common import (
     parameters_to_ndarrays,
 )
 from torch.utils.data import DataLoader
-from utils.utils_dataset import configure_dataset, load_federated_dataset
+from utils.utils_dataset import configure_dataset, load_federated_dataset, load_federated_client_dataset
 from utils.utils_model import load_model
 from models.base_model import Net
 
@@ -175,14 +175,14 @@ class FlowerRayClientClusterProxy(Server, ClientClusterProxy):
             max_workers=self.max_workers,
             timeout=None,
         )
-        log( # OK
-            INFO,
-            "fit_clients() on fog fid=%s, clsid=%s: received %s results and %s failures",
-            self.fid,
-            self.clsid,
-            len(results),
-            len(failures),
-        )
+        # log( # OK
+        #     INFO,
+        #     "fit_clients() on fog fid=%s, clsid=%s: received %s results and %s failures",
+        #     self.fid,
+        #     self.clsid,
+        #     len(results),
+        #     len(failures),
+        # )
 
         if len(failures) > 0:
             raise ValueError("Insufficient fit results from clients.")
@@ -209,21 +209,21 @@ class FlowerRayClientClusterProxy(Server, ClientClusterProxy):
             student_parameters=cluster_parameters,
             config=distillation_from_clients_config,
         )
-        if type(client_cluster_parameters) == Parameters:
+        # if type(client_cluster_parameters) == Parameters:
             # OK
-            log(
-                INFO,
-                "distillation_multiple_parameters() on fog fid=%s clsid=%s completed",
-                self.fid,
-                self.clsid,
-            )
-            log(
-                INFO,
-                "batch_size: %s, num_client :%s, num_examples: %s",
-                ins.config["batch_size"],
-                len(client_instructions),
-                ins.config["batch_size"] * len(client_instructions),
-            )
+            # log(
+            #     INFO,
+            #     "distillation_multiple_parameters() on fog fid=%s clsid=%s completed",
+            #     self.fid,
+            #     self.clsid,
+            # )
+            # log(
+            #     INFO,
+            #     "batch_size: %s, num_client :%s, num_examples: %s",
+            #     ins.config["batch_size"],
+            #     len(client_instructions),
+            #     ins.config["batch_size"] * len(client_instructions),
+            # )
 
         return FitRes(
             status=Status(Code.OK, message="success fit"),
@@ -317,13 +317,12 @@ class FlowerRayClientClusterProxy(Server, ClientClusterProxy):
         config: Dict[str, Scalar],
         cluster_parameters: Parameters,
     ):
-        testset = load_federated_dataset(
+        testset =  load_federated_client_dataset(
             dataset_name=config["dataset_name"],
-            fid=config["fid"],
-            clsid=self.clsid,
+            id=config["fid"],
             train=False,
             target=config["target_name"],
-            attribute="cluster",
+            attribute="fog",
         )
         # log( # OK
         #     INFO,

@@ -16,7 +16,7 @@ from flwr.common import (
 )
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from utils.utils_dataset import configure_dataset, load_federated_dataset
+from utils.utils_dataset import configure_dataset, load_federated_dataset, load_federated_client_dataset
 from utils.utils_model import load_model
 
 from models.base_model import Net
@@ -102,13 +102,12 @@ def evaluate_parameters(
     config: Dict[str, Any],
 ) -> EvaluateRes:
     # dataset configuration
-    testset = load_federated_dataset(
+    testset = load_federated_client_dataset(
         dataset_name=config["dataset_name"],
-        fid=config["fid"],
-        clsid=config["clsid"],
+        id=config["fid"],
         train=False,
         target=config["target_name"],
-        attribute="cluster",
+        attribute="fog",
     )
     # model configuration
     dataset_config = configure_dataset(
