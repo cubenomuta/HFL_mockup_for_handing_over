@@ -51,7 +51,7 @@ class CustomHistory(History):
         self, server_round: int, metrics: Dict[str, Dict[int, Scalar]]
     ) -> None:
         for key in metrics:
-            log(INFO, "Adding metrics for key: %s", key)
+            # log(INFO, "Adding metrics for key: %s", key)
             if key not in self.metrics_cluster_model:
                 self.metrics_cluster_model[key] = {}
             for fid in metrics[key]:

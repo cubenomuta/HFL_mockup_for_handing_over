@@ -217,11 +217,11 @@ def main():
 
         # 各 metrics の処理
         for _, metrics in eval_metrics:
-            log(
-                INFO,
-                "hfl_simulation/metrics: (%s)",
-                metrics,
-            )
+            # log(
+            #     INFO,
+            #     "hfl_simulation/metrics: (%s)",
+            #     metrics,
+            # )
 
             fid = metrics["fid"]
             clsid = metrics["clsid"]

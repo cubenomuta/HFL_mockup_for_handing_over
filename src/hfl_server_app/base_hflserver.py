@@ -514,13 +514,13 @@ def _handle_finished_future_after_cluster_evaluate(
     pre_result: Tuple[FogProxy, EvaluateRes, EvaluateRes] = future.result()
     fog, res, cluster_res = pre_result
 
-    log(
-        INFO,
-        "_handle_finished_future_after_cluster_evaluate fog fid: %s res.metrics %s cluster_res.metrics %s",
-        fog.fid,
-        res.metrics,
-        cluster_res.metrics
-    )
+    # log(
+    #     INFO,
+    #     "_handle_finished_future_after_cluster_evaluate fog fid: %s res.metrics %s cluster_res.metrics %s",
+    #     fog.fid,
+    #     res.metrics,
+    #     cluster_res.metrics
+    # )
 
     result = (fog, res)
     cluster_result = (fog, cluster_res)

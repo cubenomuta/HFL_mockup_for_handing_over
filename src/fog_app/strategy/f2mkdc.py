@@ -277,12 +277,12 @@ class F2MKDC(FedAvg):
                 for _, evaluate_res in results
             ]
         )
-        log(
-            INFO,
-            "round %s: loss_aggregated is completed %s",
-            server_round,
-            loss_aggregated,
-        )
+        # log(
+        #     INFO,
+        #     "round %s: loss_aggregated is completed %s",
+        #     server_round,
+        #     loss_aggregated,
+        # )
 
         # Aggregate custom metrics if aggregation fn was provided
         metrics_aggregated = {}

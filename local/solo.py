@@ -287,12 +287,12 @@ def main():
         max_workers=args.num_clients,
         timeout=None,
     )
-    log(
-        INFO,
-        "fit_clients() received %s results and %s failures ",
-        len(results),
-        len(failures),
-    )
+    # log(
+    #     INFO,
+    #     "fit_clients() received %s results and %s failures ",
+    #     len(results),
+    #     len(failures),
+    # )
     metrics_distributed = {}
     metrics_distributed["loss"] = {
         int(cid): fit_res.metrics["loss"] for cid, fit_res in results
