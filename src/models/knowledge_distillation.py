@@ -218,3 +218,208 @@ def distillation_multiple_parameters(
             break  # using only one minibatch
 
     return ndarrays_to_parameters(student_net.get_weights())
+
+@ray.remote
+def distillation_multiple_parameters_by_consensus(
+    teacher_parameters_list: List[Parameters],
+    student_parameters: Parameters,
+    config: Dict[str, Any],
+) -> Parameters:
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    # dataset configuration
+    dataset = load_federated_dataset(
+        dataset_name=config["dataset_name"],
+        id=config["fid"],
+        train=True,
+        target=config["target_name"],
+        attribute="fog",
+    )
+    # model configuration
+    dataset_config = configure_dataset(
+        dataset_name=config["dataset_name"],
+        target=config["target_name"],
+    )
+    teacher_net_list: List[Net] = []
+    for teacher_parameters in teacher_parameters_list:
+        teacher_net: Net = load_model(
+            name=config["teacher_model"],
+            input_spec=dataset_config["input_spec"],
+            out_dims=dataset_config["out_dims"],
+        )
+        teacher_net.set_weights(parameters_to_ndarrays(teacher_parameters))
+        teacher_net_list.append(teacher_net.to(device).eval())
+    student_net: Net = load_model(
+        name=config["student_model"],
+        input_spec=dataset_config["input_spec"],
+        out_dims=dataset_config["out_dims"],
+    )
+    student_net.set_weights(parameters_to_ndarrays(student_parameters))
+
+    # training configuration
+    lr: float = float(config["lr"])
+    batch_size: int = int(config["batch_size"])
+    weight_decay: float = float(config["weight_decay"])
+    beta: float = float(config["beta"])
+    epochs: int = int(config["global_epochs"])
+
+    optimizer = torch.optim.SGD(
+        student_net.parameters(), lr=lr, weight_decay=weight_decay
+    )
+    trainloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
+
+    student_net.to(device)
+    student_net.train()
+    for _ in range(epochs):
+        for images, labels in trainloader:
+            images, labels = images.to(device), labels.to(device)
+            with torch.no_grad():
+                teacher_outputs_list = [
+                    teacher_net(images) for teacher_net in teacher_net_list
+                ]
+
+            # 各教師モデルの出力をソフトマックスに変換して確率分布に
+            teacher_probs_list = [F.softmax(outputs, dim=1) for outputs in teacher_outputs_list]
+            
+            # 教師モデルの分散を計算
+            teacher_variances = torch.stack([probs.var(dim=1) for probs in teacher_probs_list])
+            
+            # 分散に基づいて重みを計算
+            alpha = teacher_variances / teacher_variances.sum(dim=0, keepdim=True)
+            
+            # 重み付き平均でコンセンサスロジットを計算
+            weighted_teacher_probs = sum(alpha[i].unsqueeze(1) * teacher_probs_list[i] for i in range(len(teacher_probs_list)))
+
+            student_outputs = student_net(images)
+            optimizer.zero_grad()
+            loss = loss_kd_multiple(
+                outputs=student_outputs,
+                labels=labels,
+                teacher_outputs_list=[weighted_teacher_probs],
+                alpha=beta,
+            )
+            loss.backward()
+            optimizer.step()
+            break  # using only one minibatch
+
+    return ndarrays_to_parameters(student_net.get_weights())
+
+import torch.nn.functional as F
+
+@ray.remote
+def distillation_multiple_parameters_with_extra_term(
+    teacher_parameters_list: List[Parameters],
+    student_parameters: Parameters,
+    config: Dict[str, Any],
+) -> Parameters:
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    # dataset configuration
+    dataset = load_federated_dataset(
+        dataset_name=config["dataset_name"],
+        id=config["fid"],
+        train=True,
+        target=config["target_name"],
+        attribute="fog",
+    )
+    # model configuration
+    dataset_config = configure_dataset(
+        dataset_name=config["dataset_name"],
+        target=config["target_name"],
+    )
+    teacher_net_list: List[Net] = []
+    for teacher_parameters in teacher_parameters_list:
+        teacher_net: Net = load_model(
+            name=config["teacher_model"],
+            input_spec=dataset_config["input_spec"],
+            out_dims=dataset_config["out_dims"],
+        )
+        teacher_net.set_weights(parameters_to_ndarrays(teacher_parameters))
+        teacher_net_list.append(teacher_net.to(device).eval())
+    student_net: Net = load_model(
+        name=config["student_model"],
+        input_spec=dataset_config["input_spec"],
+        out_dims=dataset_config["out_dims"],
+    )
+    student_net.set_weights(parameters_to_ndarrays(student_parameters))
+
+    # training configuration
+    lr: float = float(config["lr"])
+    batch_size: int = int(config["batch_size"])
+    weight_decay: float = float(config["weight_decay"])
+    gamma: float = float(0.05)
+    beta: float = float(config["beta"]) - gamma
+    epochs: int = int(config["global_epochs"])
+
+    optimizer = torch.optim.SGD(
+        student_net.parameters(), lr=lr, weight_decay=weight_decay
+    )
+    trainloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
+
+    student_net.to(device)
+    student_net.train()
+    for _ in range(epochs):
+        for images, labels in trainloader:
+            images, labels = images.to(device), labels.to(device)
+            with torch.no_grad():
+                teacher_outputs_list = [
+                    teacher_net(images) for teacher_net in teacher_net_list
+                ]
+
+            # 各教師モデルの出力をソフトマックスに変換して確率分布に
+            teacher_probs_list = [F.softmax(outputs, dim=1) for outputs in teacher_outputs_list]
+            
+            # 教師モデルの分散を計算
+            teacher_variances = torch.stack([probs.var(dim=1) for probs in teacher_probs_list])
+            
+            # 分散に基づいて重みを計算
+            alpha = teacher_variances / teacher_variances.sum(dim=0, keepdim=True)
+            
+            # 重み付き平均でコンセンサスロジットを計算
+            weighted_teacher_probs = sum(alpha[i].unsqueeze(1) * teacher_probs_list[i] for i in range(len(teacher_probs_list)))
+
+            student_outputs = student_net(images)
+            optimizer.zero_grad()
+            
+            # 通常の知識蒸留損失
+            loss = loss_kd_multiple(
+                outputs=student_outputs,
+                labels=labels,
+                teacher_outputs_list=[weighted_teacher_probs],
+                alpha=beta,
+            )
+            
+            # 追加項の計算
+            # 各教師モデルの予測結果（確率分布の最大値のインデックス）を取得
+            teacher_predictions = [probs.argmax(dim=1) for probs in teacher_probs_list]
+            
+            # 正解ラベルと異なる予測を行った教師モデルのインデックスを抽出
+            incorrect_teacher_indices = [i for i, pred in enumerate(teacher_predictions) if not torch.equal(pred, labels)]
+            
+            # 正解と異なる教師モデルが存在する場合
+            if incorrect_teacher_indices:
+                incorrect_teacher_probs_list = [teacher_probs_list[i] for i in incorrect_teacher_indices]
+                
+                # 分散に基づく重みを再計算
+                incorrect_teacher_variances = torch.stack([probs.var(dim=1) for probs in incorrect_teacher_probs_list])
+                incorrect_alpha = incorrect_teacher_variances / incorrect_teacher_variances.sum(dim=0, keepdim=True)
+                
+                # 重み付き平均でコンセンサスロジットを計算
+                incorrect_weighted_teacher_probs = sum(
+                    incorrect_alpha[i].unsqueeze(1) * incorrect_teacher_probs_list[i] 
+                    for i in range(len(incorrect_teacher_probs_list))
+                )
+                
+                # 追加のKLダイバージェンスの項を計算
+                additional_loss = gamma * nn.KLDivLoss(reduction="batchmean")(
+                    F.log_softmax(student_outputs, dim=1),
+                    incorrect_weighted_teacher_probs
+                )
+                
+                # 追加項を元の損失に加える
+                loss += additional_loss
+            
+            loss.backward()
+            optimizer.step()
+            break  # using only one minibatch
+
+    return ndarrays_to_parameters(student_net.get_weights())
+

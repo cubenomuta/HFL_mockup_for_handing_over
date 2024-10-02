@@ -30,6 +30,8 @@ from models.driver import evaluate_parameters
 from models.knowledge_distillation import (
     distillation_multiple_parameters,
     distillation_parameters,
+    distillation_multiple_parameters_by_consensus,
+    distillation_multiple_parameters_with_extra_term,
 )
 from simulation_app.ray_transport.ray_client_proxy import RayClientProxy
 
@@ -440,11 +442,27 @@ def distillation_from_clients(
     teacher_parameters_list_ref = ray.put(teacher_parameters_list)
     student_parameters_ref = ray.put(student_parameters)
     config_ref = ray.put(config)
-    future_distillation_res = distillation_multiple_parameters.remote(
-        teacher_parameters_list_ref,
-        student_parameters_ref,
-        config_ref,
-    )
+    if config["kd_from_clients"] == "normal": 
+        future_distillation_res = distillation_multiple_parameters.remote(
+            teacher_parameters_list_ref,
+            student_parameters_ref,
+            config_ref,
+        )
+    elif config["kd_from_clients"] == "by_consensus":
+        future_distillation_res = distillation_multiple_parameters_by_consensus.remote(
+            teacher_parameters_list_ref,
+            student_parameters_ref,
+            config_ref,
+        )
+    elif config["kd_from_clients"] == "with_extra_term":
+        future_distillation_res = distillation_multiple_parameters_with_extra_term.remote(
+            teacher_parameters_list_ref,
+            student_parameters_ref,
+            config_ref,
+        )
+    else:
+        raise ValueError("Invalid knowledge distillation method.")
+    
     try:
         res = ray.get(future_distillation_res, timeout=None)
     except Exception as ex:

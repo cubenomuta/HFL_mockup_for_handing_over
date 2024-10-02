@@ -6,4 +6,4 @@ lr: 0.05
 weight_decay: 0.0005
 alpha: 0.8
 beta: 0.2
-kd_from_clients: "normal"
+kd_from_clients: "with_extra_term"
