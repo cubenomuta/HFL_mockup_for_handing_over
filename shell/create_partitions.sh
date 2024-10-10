@@ -10,10 +10,10 @@ num_clients=100
 dataset="FashionMNIST"
 fog_partitions=$1 # "noniid-label2,1", "iid"
 client_partitions=$2 # "noniid-label2,1", "iid"
-client_shuffle_ratio=0.2
+client_shuffle_ratio=0.5
 seed=1234
 
-save_dir="./data/${dataset}/partitions/${fog_partitions}_${client_partitions}"
+save_dir="./data/${dataset}/partitions/${fog_partitions}_${client_partitions}_${client_shuffle_ratio}"
 
 if [ ! -e "${save_dir}" ]; then
     mkdir -p "${save_dir}/logs/"

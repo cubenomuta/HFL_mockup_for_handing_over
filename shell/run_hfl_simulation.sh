@@ -10,13 +10,13 @@ done < ${CUDA_VISIBLE_DEVICES_FILE}
 fi
 
 # fl configuration
-strategy="F2MKDC"
+strategy="F2MKD"
 server_model="tinyCNN"
 client_model="tinyCNN"
 dataset="FashionMNIST"
-target=$1
-num_rounds=500
-num_fogs=10
+target=noniid-label2_part-noniid_0.5
+num_rounds=300
+num_fogs=5
 num_clients=100
 fraction_fit=1
 
@@ -35,7 +35,7 @@ if [ ! -e "${exp_dir}" ]; then
 fi
 echo "create dir to ${exp_dir}"
 
-ray start --head --min-worker-port 20000 --max-worker-port 29999 --num-cpus $2
+ray start --head --min-worker-port 20000 --max-worker-port 29999 --num-cpus 20 --num-gpus 8
 sleep 1 
 
 python ./local/hfl_simulation.py \
