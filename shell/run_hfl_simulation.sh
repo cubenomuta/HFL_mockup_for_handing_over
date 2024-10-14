@@ -10,11 +10,11 @@ done < ${CUDA_VISIBLE_DEVICES_FILE}
 fi
 
 # fl configuration
-strategy="F2MKD"
+strategy="F2MKDC"
 server_model="tinyCNN"
 client_model="tinyCNN"
 dataset="FashionMNIST"
-target=noniid-label2_part-noniid_0.5
+target=noniid-label2_part-noniid
 num_rounds=300
 num_fogs=5
 num_clients=100
@@ -26,7 +26,7 @@ seed=1234
 echo "Running ${yaml_path}"
 
 time=`date '+%Y%m%d%H%M'`
-exp_dir="./simulation/${dataset}/${target}/${strategy}_${server_model}_${client_model}/run_${time}"
+exp_dir="./simulation/${dataset}/f_${num_fogs}_c_${num_clients}_${target}/${strategy}_${server_model}_${client_model}/run_${time}"
 
 if [ ! -e "${exp_dir}" ]; then
     mkdir -p "${exp_dir}/logs/"
@@ -35,7 +35,7 @@ if [ ! -e "${exp_dir}" ]; then
 fi
 echo "create dir to ${exp_dir}"
 
-ray start --head --min-worker-port 20000 --max-worker-port 29999 --num-cpus 20 --num-gpus 8
+ray start --head --min-worker-port 20000 --max-worker-port 29999 --num-cpus 5 --num-gpus 4
 sleep 1 
 
 python ./local/hfl_simulation.py \
