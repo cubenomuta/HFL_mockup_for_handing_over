@@ -33,7 +33,7 @@ from flwr.server import ClientManager, Server
 from hfl_server_app.client_cluster_proxy import ClientClusterProxy
 from flwr.server.strategy import Strategy
 from flwr.server.server import fit_clients
-from models.driver import evaluate_parameters
+from models.driver import evaluate_parameters, evaluate_parameters_by_client_data
 from models.knowledge_distillation import (
     distillation_multiple_parameters,
     distillation_parameters,
@@ -558,9 +558,10 @@ def evaluate_client_parameters(
     ins: EvaluateIns,
     timeout: Optional[float] = None,
 ):
+    ins.config["cid"] = client.cid
     parameters_ref = ray.put(ins.parameters)
     config_ref = ray.put(ins.config)
-    future_evaluate_res = evaluate_parameters.remote(
+    future_evaluate_res = evaluate_parameters_by_client_data.remote(
         parameters_ref,
         config_ref,
     )

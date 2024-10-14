@@ -102,12 +102,60 @@ def evaluate_parameters(
     config: Dict[str, Any],
 ) -> EvaluateRes:
     # dataset configuration
+    # log(
+    #     INFO,
+    #     "evaluate_parameters_by_fog_data",
+    # )
     testset = load_federated_client_dataset(
         dataset_name=config["dataset_name"],
         id=config["fid"],
         train=False,
         target=config["target_name"],
         attribute="fog",
+    )
+    # model configuration
+    dataset_config = configure_dataset(
+        dataset_name=config["dataset_name"],
+        target=config["target_name"],
+    )
+    net: Net = load_model(
+        name=config["client_model_name"],
+        input_spec=dataset_config["input_spec"],
+        out_dims=dataset_config["out_dims"],
+    )
+    net.set_weights(parameters_to_ndarrays(parameters))
+
+    # test configuration
+    batch_size: int = int(config["batch_size"])
+    # num_workers = int(ray.get_runtime_context().get_assigned_resources()["CPU"])
+    testloader = DataLoader(
+        dataset=testset,
+        batch_size=batch_size,
+        shuffle=False,
+    )
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+    result = test(net=net, testloader=testloader, device=device)
+    result["num_examples"] = len(testset)
+    return result
+
+@ray.remote
+def evaluate_parameters_by_client_data(
+    parameters: Parameters,
+    config: Dict[str, Any],
+) -> EvaluateRes:
+    # dataset configuration
+    # log(
+    #     INFO,
+    #     "cid: %s evaluate_parameters_by_client_data",
+    #     config["cid"]
+    # )
+    testset = load_federated_client_dataset(
+        dataset_name=config["dataset_name"],
+        id=config["cid"],
+        train=False,
+        target=config["target_name"],
+        attribute="client",
     )
     # model configuration
     dataset_config = configure_dataset(

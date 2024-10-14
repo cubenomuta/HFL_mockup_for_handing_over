@@ -72,10 +72,10 @@ class FlowerClient(Client):
         # )
         self.testset = load_federated_client_dataset(
             dataset_name=self.dataset,
-            id=self.fid,
+            id=self.cid,
             train=False,
             target=self.target,
-            attribute="fog",
+            attribute="client",
         )
 
         # model configuration
