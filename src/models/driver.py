@@ -102,10 +102,6 @@ def evaluate_parameters(
     config: Dict[str, Any],
 ) -> EvaluateRes:
     # dataset configuration
-    # log(
-    #     INFO,
-    #     "evaluate_parameters_by_fog_data",
-    # )
     testset = load_federated_client_dataset(
         dataset_name=config["dataset_name"],
         id=config["fid"],
@@ -144,12 +140,6 @@ def evaluate_parameters_by_client_data(
     parameters: Parameters,
     config: Dict[str, Any],
 ) -> EvaluateRes:
-    # dataset configuration
-    # log(
-    #     INFO,
-    #     "cid: %s evaluate_parameters_by_client_data",
-    #     config["cid"]
-    # )
     testset = load_federated_client_dataset(
         dataset_name=config["dataset_name"],
         id=config["cid"],
