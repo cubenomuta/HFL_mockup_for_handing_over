@@ -132,8 +132,8 @@ def main(args):
         seed=seed,
     )
     save_dir = Path(args.save_dir) / "fog"
-    write_json(fog_train_json_data, save_dir=save_dir, file_name="train_data")
-    write_json(fog_test_json_data, save_dir=save_dir, file_name="test_data")
+    write_json(fog_train_json_data, save_dir=save_dir, file_name="before_shuffle_train_data")
+    write_json(fog_test_json_data, save_dir=save_dir, file_name="before_shuffle_test_data")
 
     client_train_json_data = {}
     client_test_json_data = {}
@@ -257,13 +257,13 @@ def main(args):
 
         print("テストデータの統計情報")
         print(f"fog record net data stats")
-        record_net_data_stats(y_test, fog_test_json_data)
+        before_shuffle_fog_test_data_stats = record_net_data_stats(y_test, fog_test_json_data)
         print(f"fog record net data stats after update")
         record_net_data_stats(y_test, fog_updatedkey_test_json_data)
         print(f"client record net data stats")
         record_net_data_stats(y_test, client_test_json_data)
         print(f"client record net data stats after update")
-        record_net_data_stats(y_test, shuffledkey_client_test_json_data)
+        aftert_shuffle_client_test_data_stats = record_net_data_stats(y_test, shuffledkey_client_test_json_data)
 
         save_dir = Path(args.save_dir) / "fog"
         print(f"create test json file at {save_dir}")
@@ -273,6 +273,7 @@ def main(args):
         write_json(shuffledkey_client_train_json_data, save_dir=save_dir, file_name=f"train_data")
         write_json(shuffledkey_client_test_json_data, save_dir=save_dir, file_name=f"test_data")
         create_json_data_stats(y_train, shuffledkey_client_train_json_data, save_dir=save_dir, file_name=f"client_train_data_stats")
+        create_json_data_stats(y_test, shuffledkey_client_test_json_data, save_dir=save_dir, file_name=f"after_shuffle_client_test_data_stats")
 
     shuffledkey_client_train_json_data = {}
     shuffledkey_client_test_json_data = {}
@@ -315,6 +316,19 @@ def main(args):
     save_dir = Path(args.save_dir) / "cluster"
     write_json(cluster_train_json_data, save_dir=save_dir, file_name="train_data")
     write_json(cluster_test_json_data, save_dir=save_dir, file_name="test_data")
+
+    before_shuffle_cid_fid_dict = {}
+
+    # dict1のkey1とdict2のkey2を比較
+    for key1, sub_dict1 in aftert_shuffle_client_test_data_stats.items():
+        for key2, sub_dict2 in before_shuffle_fog_test_data_stats.items():
+            # sub_dict1とsub_dict2のキーが完全に一致する場合
+            if set(sub_dict1.keys()) == set(sub_dict2.keys()):
+                before_shuffle_cid_fid_dict[key1] = key2
+
+    save_dir = Path(args.save_dir) / "client"
+    write_json(before_shuffle_cid_fid_dict, save_dir=save_dir, file_name="before_shuffle_cid_fid_dict")
+    
 
 
 if __name__ == "__main__":

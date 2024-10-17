@@ -10,7 +10,7 @@ num_clients=100
 dataset="FashionMNIST"
 fog_partitions=$1 # "noniid-label2,1", "iid"
 client_partitions=$2 # "noniid-label2,1", "iid"
-client_shuffle_ratio=0.5
+client_shuffle_ratio=0.2
 seed=1234
 
 save_dir="./data/${dataset}/partitions/${fog_partitions}_${client_partitions}_${client_shuffle_ratio}"
