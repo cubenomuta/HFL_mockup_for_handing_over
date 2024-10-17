@@ -29,7 +29,7 @@ from flwr.server.strategy import Strategy
 from hfl_server_app.fog_proxy import FogProxy
 from hfl_server_app.client_cluster_proxy import ClientClusterProxy
 from hfl_server_app.client_cluster_manager import SimpleClientClusterManager
-from models.driver import evaluate_parameters, evaluate_parameters_by_client_data
+from models.driver import evaluate_parameters, evaluate_parameters_by_client_data, evaluate_parameters_by_before_shuffle_fog_data
 from models.knowledge_distillation import (
     distillation_multiple_parameters,
     distillation_parameters,
@@ -917,7 +917,11 @@ def evaluate_client_parameters(
     ins.config["cid"] = client.cid
     parameters_ref = ray.put(ins.parameters)
     config_ref = ray.put(ins.config)
-    future_evaluate_res = evaluate_parameters_by_client_data.remote(
+    # future_evaluate_res = evaluate_parameters_by_client_data.remote(
+    #     parameters_ref,
+    #     config_ref,
+    # )
+    future_evaluate_res = evaluate_parameters_by_before_shuffle_fog_data.remote(
         parameters_ref,
         config_ref,
     )

@@ -1,5 +1,6 @@
 import sys
 from typing import Any, Dict
+import json
 
 from logging import DEBUG, INFO, WARNING
 from flwr.common.logger import log
@@ -20,6 +21,10 @@ from utils.utils_dataset import configure_dataset, load_federated_dataset, load_
 from utils.utils_model import load_model
 
 from models.base_model import Net
+
+import os
+from pathlib import Path
+DATA_ROOT = Path(os.environ["DATA_ROOT"])
 
 
 def train(
@@ -147,6 +152,69 @@ def evaluate_parameters_by_client_data(
         target=config["target_name"],
         attribute="client",
     )
+    # model configuration
+    dataset_config = configure_dataset(
+        dataset_name=config["dataset_name"],
+        target=config["target_name"],
+    )
+    net: Net = load_model(
+        name=config["client_model_name"],
+        input_spec=dataset_config["input_spec"],
+        out_dims=dataset_config["out_dims"],
+    )
+    net.set_weights(parameters_to_ndarrays(parameters))
+
+    # test configuration
+    batch_size: int = int(config["batch_size"])
+    # num_workers = int(ray.get_runtime_context().get_assigned_resources()["CPU"])
+    testloader = DataLoader(
+        dataset=testset,
+        batch_size=batch_size,
+        shuffle=False,
+    )
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+    result = test(net=net, testloader=testloader, device=device)
+    result["num_examples"] = len(testset)
+    return result
+
+@ray.remote
+def evaluate_parameters_by_before_shuffle_fog_data(
+    parameters: Parameters,
+    config: Dict[str, Any],
+) -> EvaluateRes:
+    
+    root = DATA_ROOT
+    json_path = (
+        Path(root) / config["dataset_name"] / "partitions" / config["target_name"] / "client" / "before_shuffle_cid_fid_dict.json"
+    )
+    
+    with open(json_path, 'r') as f:
+        cid_fid_dict = json.load(f)
+
+    before_fid = cid_fid_dict[str(config["cid"])]
+
+    # log(
+    #     INFO, 
+    #     "cid: %s, before_fid: %s",
+    #     config["cid"],
+    #     before_fid
+    # )
+    
+    testset = load_federated_client_dataset(
+        dataset_name=config["dataset_name"],
+        id=str(before_fid),
+        train=False,
+        target=config["target_name"],
+        attribute="fog",
+    )
+
+    # log(
+    #     INFO,
+    #     "len(testset): %s",
+    #     len(testset)
+    # )
+
     # model configuration
     dataset_config = configure_dataset(
         dataset_name=config["dataset_name"],
