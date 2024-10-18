@@ -193,13 +193,13 @@ def evaluate_parameters_by_before_shuffle_fog_data(
         cid_fid_dict = json.load(f)
     before_fid = cid_fid_dict[str(config["cid"])]
     after_fid = config["fid"]
-    log(
-        INFO, 
-        "cid: %s, before_fid: %s, after_fid: %s",
-        config["cid"],
-        before_fid,
-        after_fid
-    )
+    # log(
+    #     INFO, 
+    #     "cid: %s, before_fid: %s, after_fid: %s",
+    #     config["cid"],
+    #     before_fid,
+    #     after_fid
+    # )
 
     # if before_fid == 0:
     #     print(f"cid {config['cid']}: before_fid: {before_fid}, after_fid: {after_fid}")
@@ -212,11 +212,11 @@ def evaluate_parameters_by_before_shuffle_fog_data(
         attribute="fog",
         shuffle=True, # shuffle前のデータを取得
     )
-    log(
-        INFO,
-        "len(testset): %s",
-        len(testset)
-    )
+    # log(
+    #     INFO,
+    #     "len(testset): %s",
+    #     len(testset)
+    # )
     # model configuration
     dataset_config = configure_dataset(
         dataset_name=config["dataset_name"],
