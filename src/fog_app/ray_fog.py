@@ -26,7 +26,7 @@ from flwr.server.client_proxy import ClientProxy
 from flwr.server.server import fit_clients
 from flwr.server.strategy import Strategy
 from hfl_server_app.fog_proxy import FogProxy
-from models.driver import evaluate_parameters
+from models.driver import evaluate_parameters, evaluate_parameters_by_client_data, evaluate_parameters_by_before_shuffle_fog_data
 from models.knowledge_distillation import (
     distillation_multiple_parameters,
     distillation_parameters,
@@ -68,6 +68,12 @@ class RayFlowerFogProxy(Server, FogProxy):
             str(x + int(self.fid) * self.config["num_clients"])
             for x in range(self.config["num_clients"])
         ]
+        # log(
+        #     INFO,
+        #     "Fog fid=%s: self.cids %s",
+        #     self.fid,
+        #     self.cids
+        # )
         for cid in self.cids:
             client_proxy = RayClientProxy(
                 cid=cid, client_fn=client_fn, resources={"num_cpus": 1}
@@ -481,6 +487,13 @@ def evaluate_clients_parameters(
     timeout: Optional[float],
 ) -> EvaluateResultsAndFailures:
     """Evaluate client parameters currently on all selected clinets"""
+    # for client_proxy, ins in client_instructions:
+    #     log( # 連番だった
+    #         INFO,
+    #         "evaluate_clients_parameters() on client_proxy.cid=%s ins.config['cid']=%s",
+    #         client_proxy.cid,
+    #         ins.config["cid"] # エラー出る
+    #     )
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         submitted_fs = {
             executor.submit(evaluate_client_parameters, client_proxy, ins, timeout)
@@ -506,9 +519,18 @@ def evaluate_client_parameters(
     ins: EvaluateIns,
     timeout: Optional[float] = None,
 ):
+    ins.config["cid"] = client.cid
     parameters_ref = ray.put(ins.parameters)
     config_ref = ray.put(ins.config)
-    future_evaluate_res = evaluate_parameters.remote(
+    # future_evaluate_res = evaluate_parameters.remote(
+    #     parameters_ref,
+    #     config_ref,
+    # )
+    # future_evaluate_res = evaluate_parameters_by_client_data.remote(
+    #     parameters_ref,
+    #     config_ref,
+    # )
+    future_evaluate_res = evaluate_parameters_by_before_shuffle_fog_data.remote(
         parameters_ref,
         config_ref,
     )

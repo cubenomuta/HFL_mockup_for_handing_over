@@ -10,14 +10,13 @@ done < ${CUDA_VISIBLE_DEVICES_FILE}
 fi
 
 # fl configuration
-# strategy="F2MKD"
-strategy="FedFog"
+strategy="F2MKD"
 server_model="tinyCNN"
 client_model="tinyCNN"
 dataset="FashionMNIST"
-target=$1
-num_rounds=500
-num_fogs=10
+target="noniid-label2_part-noniid_0.2"
+num_rounds=300
+num_fogs=5
 num_clients=100
 fraction_fit=1
 
@@ -26,7 +25,7 @@ yaml_path="./conf/${dataset}/${strategy}_${server_model}_${client_model}/fit_con
 seed=1234
 
 time=`date '+%Y%m%d%H%M'`
-exp_dir="./simulation/${dataset}/${target}/${strategy}_${server_model}_${client_model}/run_${time}"
+exp_dir="./simulation/${dataset}/f_5_c_100_${target}/${strategy}_${server_model}_${client_model}_evaluate_by_before_shuffle_fog_data/run_${time}"
 
 if [ ! -e "${exp_dir}" ]; then
     mkdir -p "${exp_dir}/logs/"
@@ -34,7 +33,7 @@ if [ ! -e "${exp_dir}" ]; then
     mkdir -p "${exp_dir}/metrics/"
 fi
 
-ray start --head --min-worker-port 20000 --max-worker-port 29999 --num-cpus $2
+ray start --head --min-worker-port 20000 --max-worker-port 29999 --num-cpus 5
 sleep 1 
 
 python ./local/hfl_simulation.py \

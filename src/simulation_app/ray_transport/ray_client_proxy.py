@@ -20,6 +20,7 @@ class RayClientProxy(FlowerRayClientProxy):
         self, client_fn: ClientFn, cid: str, resources: Dict[str, float]
     ) -> None:
         super().__init__(client_fn, cid, resources)
+        # log(DEBUG, f"RayClientProxy.__init__ cid: {cid}")
 
     def fit(self, ins: common.FitIns, timeout: Optional[float]) -> common.FitRes:
         """Train model parameters on the locally held dataset."""

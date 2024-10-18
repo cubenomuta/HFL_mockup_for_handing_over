@@ -24,12 +24,14 @@ class FashionMNIST_truncated(Dataset):
         transform=None,
         target_transform=None,
         download: bool = False,
+        shuffle: bool = False,
     ):
         self.id = id
         self.train = train
         self.transform = transform
         self.target_transform = target_transform
         self.download = download
+        self.shuffle = shuffle
 
         self.data_root = Path(root)
         self.json_path = None
@@ -40,7 +42,10 @@ class FashionMNIST_truncated(Dataset):
             if self.train:
                 self.json_path = self.json_root / "train_data.json"
             else:
-                self.json_path = self.json_root / "test_data.json"
+                if self.shuffle:
+                    self.json_path = self.json_root / "test_data_before_shuffle.json"
+                else:
+                    self.json_path = self.json_root / "test_data.json"
 
         self.data, self.target = self.__build_truncated_dataset__()
 

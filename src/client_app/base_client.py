@@ -60,12 +60,20 @@ class FlowerClient(Client):
         # self.trainset, self.valset = split_validation(
         #     dataset, split_ratio=validation_ratio
         # )
+        # self.testset = load_federated_dataset(
+        #     dataset_name=self.dataset,
+        #     id=self.fid,
+        #     train=False,
+        #     target=self.target,
+        #     attribute="fog",
+        # )
+
         self.testset = load_federated_dataset(
             dataset_name=self.dataset,
-            id=self.fid,
+            id=self.cid,
             train=False,
             target=self.target,
-            attribute="fog",
+            attribute="client",
         )
 
         # model configuration
