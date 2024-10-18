@@ -43,7 +43,7 @@ class FashionMNIST_truncated(Dataset):
                 self.json_path = self.json_root / "train_data.json"
             else:
                 if self.shuffle:
-                    self.json_path = self.json_root / "test_data_before_shuffle.json"
+                    self.json_path = self.json_root / "before_shuffle_test_data.json"
                 else:
                     self.json_path = self.json_root / "test_data.json"
 
