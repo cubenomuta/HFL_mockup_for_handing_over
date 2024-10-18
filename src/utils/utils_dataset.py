@@ -193,6 +193,7 @@ def load_federated_client_dataset( # クライアント用
     target: str = None,
     attribute: str = None,
     download: bool = False,
+    shuffle: bool = False,
 ) -> Dataset:
     if dataset_name == "MNIST":
         transform = transforms.Compose(
@@ -231,6 +232,7 @@ def load_federated_client_dataset( # クライアント用
             attribute=attribute,
             transform=transform,
             download=download,
+            shuffle=shuffle,
         )
     elif dataset_name == "CIFAR10":
         transform = transforms.Compose(

@@ -207,6 +207,7 @@ def evaluate_parameters_by_before_shuffle_fog_data(
         train=False,
         target=config["target_name"],
         attribute="fog",
+        shuffle=True, # シャッフル前のフォグデータの取得
     )
 
     # log(
