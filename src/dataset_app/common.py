@@ -263,6 +263,31 @@ def create_noniid_dir(
     record_net_data_stats(labels, net_dataidx_map)
     return net_dataidx_map, dirichlet_dist
 
+def create_consistent_test_data(
+    labels: np.ndarray,
+    dirichlet_dist: np.ndarray,
+    num_parties: int,
+    num_test_samples: int = 2000
+) -> Dict[int, List[int]]:
+    """
+    テストデータを各クライアントで一貫した分布に従って生成する関数。
+    各クライアントごとに2000サンプルを取得する。
+    """
+    # クラスごとのインデックスリストを作成
+    classes = list(np.unique(labels))
+    list_labels_idxes = {k: np.where(labels == k)[0].tolist() for k in classes}
+    print(f"list_labels_idxes: {list_labels_idxes}")
+
+    test_dataidx_map = {i: [] for i in range(num_parties)}
+    for id in range(num_parties):
+        # 各クライアントに対して2000サンプル取得し、int型に変換して保存
+        test_dataidx_map[id] = [int(idx) for idx in sample_with_replacement(
+            distribution=dirichlet_dist[id],
+            list_label_idxes=list_labels_idxes,
+            num_sample=num_test_samples
+        )]
+
+    return test_dataidx_map
 
 def record_net_data_stats(y_train, net_dataidx_map):
     net_cls_counts = {}
@@ -310,6 +335,23 @@ def sample_without_replacement(
             )
     np.random.shuffle(label_list)
     return label_list, empty_classes
+
+def sample_with_replacement(
+    distribution: np.ndarray,
+    list_label_idxes: Dict[int, List[int]],
+    num_sample: int
+) -> List[int]:
+    """
+    指定された分布に従ってデータをサンプルする関数。
+    重複を許容してデータを取得する。
+    """
+    label_list = []
+    for _ in range(num_sample):
+        sample_class = np.where(np.random.multinomial(1, distribution) == 1)[0][0]
+        label_idx = np.random.choice(list_label_idxes[sample_class])  # 重複可能なサンプリング
+        label_list.append(label_idx)
+    np.random.shuffle(label_list)
+    return label_list
 
 
 def exclude_classes_and_normalize(

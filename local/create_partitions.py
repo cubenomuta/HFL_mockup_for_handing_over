@@ -11,6 +11,7 @@ from dataset_app.common import (
     create_iid,
     create_noniid,
     create_noniid_dir,
+    create_consistent_test_data,
     load_numpy_dataset,
     write_json,
     record_net_data_stats,
@@ -85,7 +86,7 @@ def partitioning(
         )
     elif partitions[:10] == "noniid-dir":
         train_json_data, dirichlet_dist = create_noniid_dir(
-            labels=train_labels,
+            labels=train_labels, # train_labesから抜き取る
             num_class=10,
             dirichlet_dist=None,
             num_parties=num_parties,
@@ -94,16 +95,21 @@ def partitioning(
             classes=classes,
             list_labels_idxes=list_train_labels_idxes,
         )
-        test_json_data, dirichlet_dist = create_noniid_dir(
+        test_json_data = create_consistent_test_data(
             labels=test_labels,
-            num_class=10,
-            dirichlet_dist=None,
+            dirichlet_dist=dirichlet_dist,
             num_parties=num_parties,
-            alpha=float(partitions[10:]),
-            seed=seed,
-            classes=classes,
-            list_labels_idxes=list_test_labels_idxes,
         )
+        # test_json_data, dirichlet_dist = create_noniid_dir(
+        #     labels=test_labels,
+        #     num_class=10,
+        #     dirichlet_dist=None,
+        #     num_parties=num_parties,
+        #     alpha=float(partitions[10:]),
+        #     seed=seed,
+        #     classes=classes,
+        #     list_labels_idxes=list_test_labels_idxes,
+        # )
     return train_json_data, test_json_data
 
 
@@ -281,12 +287,13 @@ def main(args):
     shuffledkey_client_test_json_data.update(client_test_json_data)
 
     print("フォグ訓練データの統計情報")
-    print(f"fog record net data stats")
     record_net_data_stats(y_train, fog_train_json_data)
     # print(f"fog record net data stats after update")
     # record_net_data_stats(y_train, fog_updatedkey_train_json_data)
-    print(f"client record net data stats")
+    print("クライアント訓練データの統計情報")
     record_net_data_stats(y_train, client_train_json_data)
+    print("クライアント評価データの統計情報")
+    record_net_data_stats(y_test, client_test_json_data)
     # print(f"client record net data stats after update")
     # record_net_data_stats(y_train, shuffledkey_client_train_json_data)
 
@@ -294,7 +301,7 @@ def main(args):
     save_dir = Path(args.save_dir) / "client"
     input_file_path = save_dir / "client_train_data_stats.json"
     output_file_path = save_dir / "clustered_client_list.json"
-    run_clustering_process(input_file=input_file_path, output_file=output_file_path, cluster_count=5)
+    run_clustering_process(input_file=input_file_path, output_file=output_file_path)
 
     # make cluster train_data.json
     with open(output_file_path, 'r') as f:
@@ -317,17 +324,18 @@ def main(args):
     write_json(cluster_train_json_data, save_dir=save_dir, file_name="train_data")
     write_json(cluster_test_json_data, save_dir=save_dir, file_name="test_data")
 
-    before_shuffle_cid_fid_dict = {}
+    if (client_partitions == "part-noniid"):
+        before_shuffle_cid_fid_dict = {}
 
-    # dict1のkey1とdict2のkey2を比較
-    for key1, sub_dict1 in aftert_shuffle_client_test_data_stats.items():
-        for key2, sub_dict2 in before_shuffle_fog_test_data_stats.items():
-            # sub_dict1とsub_dict2のキーが完全に一致する場合
-            if set(sub_dict1.keys()) == set(sub_dict2.keys()):
-                before_shuffle_cid_fid_dict[key1] = key2
+        # dict1のkey1とdict2のkey2を比較
+        for key1, sub_dict1 in aftert_shuffle_client_test_data_stats.items():
+            for key2, sub_dict2 in before_shuffle_fog_test_data_stats.items():
+                # sub_dict1とsub_dict2のキーが完全に一致する場合
+                if set(sub_dict1.keys()) == set(sub_dict2.keys()):
+                    before_shuffle_cid_fid_dict[key1] = key2
 
-    save_dir = Path(args.save_dir) / "client"
-    write_json(before_shuffle_cid_fid_dict, save_dir=save_dir, file_name="before_shuffle_cid_fid_dict")
+        save_dir = Path(args.save_dir) / "client"
+        write_json(before_shuffle_cid_fid_dict, save_dir=save_dir, file_name="before_shuffle_cid_fid_dict")
     
 
 
