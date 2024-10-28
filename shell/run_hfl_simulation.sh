@@ -14,7 +14,7 @@ strategy="F2MKD"
 server_model="tinyCNN"
 client_model="tinyCNN"
 dataset="FashionMNIST"
-target="noniid-label2_part-noniid_0.2"
+target="iid_noniid-dir0.5"
 num_rounds=300
 num_fogs=5
 num_clients=100
@@ -25,7 +25,7 @@ yaml_path="./conf/${dataset}/${strategy}_${server_model}_${client_model}/fit_con
 seed=1234
 
 time=`date '+%Y%m%d%H%M'`
-exp_dir="./simulation/${dataset}/f_5_c_100_${target}/${strategy}_${server_model}_${client_model}_evaluate_by_before_shuffle_fog_data/run_${time}"
+exp_dir="./simulation/${dataset}/f_5_c_100_${target}/${strategy}_${server_model}_${client_model}/run_${time}"
 
 if [ ! -e "${exp_dir}" ]; then
     mkdir -p "${exp_dir}/logs/"
@@ -33,7 +33,7 @@ if [ ! -e "${exp_dir}" ]; then
     mkdir -p "${exp_dir}/metrics/"
 fi
 
-ray start --head --min-worker-port 20000 --max-worker-port 29999 --num-cpus 5
+ray start --head --min-worker-port 20000 --max-worker-port 29999 --num-cpus 5 --num-gpus 4
 sleep 1 
 
 python ./local/hfl_simulation.py \
