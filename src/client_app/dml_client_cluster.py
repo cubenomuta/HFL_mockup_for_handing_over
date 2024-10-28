@@ -77,6 +77,8 @@ class FlowerRayClientClusterProxy(Server, ClientClusterProxy):
         self.clsid = clsid
         self.attribute = "cluster"
         self.config = config
+        self.dataset = config["dataset_name"]
+        self.target = config["target_name"]
 
     def get_parameters(
         self, ins: GetParametersIns, timeout: Optional[float]
@@ -274,10 +276,12 @@ class FlowerRayClientClusterProxy(Server, ClientClusterProxy):
         #     cluster_model_evaluateres.metrics,
         # )
 
+        client_partition = self.target.split('_')[1]
+
         # クライアントモデルの評価
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             submitted_fs = {
-                executor.submit(evaluate_client_parameters, client_proxy, ins, timeout)
+                executor.submit(evaluate_client_parameters, client_proxy, ins, client_partition, timeout)
                 for client_proxy, ins in client_instructions
             }
             finished_fs, _ = concurrent.futures.wait(
@@ -556,19 +560,41 @@ def distillation_from_clients(
 def evaluate_client_parameters(
     client: ClientProxy,
     ins: EvaluateIns,
+    client_partition: str,
     timeout: Optional[float] = None,
 ):
     ins.config["cid"] = client.cid
     parameters_ref = ray.put(ins.parameters)
     config_ref = ray.put(ins.config)
-    # future_evaluate_res = evaluate_parameters_by_client_data.remote(
-    #     parameters_ref,
-    #     config_ref,
-    # )
-    future_evaluate_res = evaluate_parameters_by_before_shuffle_fog_data.remote(
-        parameters_ref,
-        config_ref,
-    )
+
+    # targetに応じてテストに使用するデータを出しわける
+    if client_partition == "iid": # フォグのtestデータで評価
+        # log(
+        #     INFO,
+        #     "evaluate_parameters.remote() is called",
+        # )
+        future_evaluate_res = evaluate_parameters.remote(
+            parameters_ref,
+            config_ref,
+        )
+    elif "part-noniid" in client_partition: # シャッフル前のフォグのtestデータで評価
+        # log(
+        #     INFO,
+        #     "evaluate_parameters_by_before_shuffle_fog_data.remote() is called",
+        # )
+        future_evaluate_res = evaluate_parameters_by_before_shuffle_fog_data.remote(
+            parameters_ref,
+            config_ref,
+        )
+    else: # クライアントのtestデータで評価
+        # log(
+        #     INFO,
+        #     "evaluate_parameters_by_client_data.remote() is called",
+        # )
+        future_evaluate_res = evaluate_parameters_by_client_data.remote(
+            parameters_ref,
+            config_ref,
+        )
     try:
         res = ray.get(future_evaluate_res, timeout=timeout)
     except Exception as ex:
