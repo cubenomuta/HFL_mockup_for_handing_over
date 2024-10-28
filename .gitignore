@@ -13,5 +13,7 @@ setup_pi.sh
 *.tgz
 *.jpg
 *.png
+*.svg
+*.csv
 *__pycache__*
 *DS_Store*

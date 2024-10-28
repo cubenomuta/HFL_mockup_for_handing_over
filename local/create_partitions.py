@@ -18,7 +18,9 @@ from dataset_app.common import (
     create_json_data_stats
 )
 from flwr.common import NDArray
-from dataset_app.kmeans_clustering import run_clustering_process
+from dataset_app.kmeans_clustering import run_kmeans_clustering
+from dataset_app.hierarchical_clustering import run_hierarchical_clustering
+from dataset_app.kl_divergence_in_clients import save_kl_divergence
 
 parser = argparse.ArgumentParser("Create dataset partitions for fogs and clients")
 parser.add_argument("--num_fogs", type=int, required=True, help="The number of fogs")
@@ -43,7 +45,13 @@ parser.add_argument(
 )
 parser.add_argument("--save_dir", type=str, required=True, help="save directory")
 parser.add_argument("--seed", type=int, required=True, help="random seed")
-
+parser.add_argument(
+    "--cluster_alg",
+    type=str,
+    required=True,
+    choices=["kmeans", "hierarchical"],
+    help="clustering algorithm",
+)
 
 def set_seed(seed: int):
     random.seed(seed)
@@ -127,6 +135,7 @@ def main(args):
     client_partitions = args.client_partitions
     client_shuffle_ratio = args.client_shuffle_ratio
     seed = args.seed
+    cluster_alg = args.cluster_alg
 
     _, y_train, _, y_test = load_numpy_dataset(dataset_name=dataset)
 
@@ -301,7 +310,16 @@ def main(args):
     save_dir = Path(args.save_dir) / "client"
     input_file_path = save_dir / "client_train_data_stats.json"
     output_file_path = save_dir / "clustered_client_list.json"
-    run_clustering_process(input_file=input_file_path, output_file=output_file_path)
+
+    if cluster_alg == "kmeans":
+        print("run kmeans clustering")
+        run_kmeans_clustering(save_dir=save_dir, output_file=output_file_path, num_fogs=num_fogs, num_clients=num_clients)
+    elif cluster_alg == "hierarchical":
+        print("run hierarchical clustering")
+        save_kl_divergence(save_dir=save_dir)
+        run_hierarchical_clustering(save_dir=save_dir, output_file=output_file_path)
+    else:
+        raise ValueError(f"Invalid clustering algorithm: {cluster_alg}")
 
     # make cluster train_data.json
     with open(output_file_path, 'r') as f:
