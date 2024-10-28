@@ -147,8 +147,13 @@ def main(args):
         seed=seed,
     )
     save_dir = Path(args.save_dir) / "fog"
-    write_json(fog_train_json_data, save_dir=save_dir, file_name="before_shuffle_train_data")
-    write_json(fog_test_json_data, save_dir=save_dir, file_name="before_shuffle_test_data")
+
+    if (client_partitions == "part-noniid"):
+        write_json(fog_train_json_data, save_dir=save_dir, file_name="before_shuffle_train_data")
+        write_json(fog_test_json_data, save_dir=save_dir, file_name="before_shuffle_test_datale_test_data")
+    else:
+        write_json(fog_train_json_data, save_dir=save_dir, file_name="train_data")
+        write_json(fog_test_json_data, save_dir=save_dir, file_name="test_data")
 
     client_train_json_data = {}
     client_test_json_data = {}
