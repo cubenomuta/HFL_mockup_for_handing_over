@@ -62,6 +62,8 @@ class RayFlowerFogProxy(Server, FogProxy):
         self.fid = fid
         self.attribute = "fog"
         self.config = config
+        self.dataset = config["dataset_name"]
+        self.target = config["target_name"]
 
         # client configurations
         self.cids = [
@@ -334,9 +336,12 @@ class RayFlowerDMLFogProxy(RayFlowerFogProxy):
         )
         self.set_max_workers(max_workers=len(client_instructions))
 
+        client_partition = self.target.split('_')[1]
+
         results, failures = evaluate_clients_parameters(
             client_instructions=client_instructions,
             max_workers=self.max_workers,
+            client_partition=client_partition,
             timeout=None,
         )
         log(
@@ -484,6 +489,7 @@ def distillation_from_clients(
 def evaluate_clients_parameters(
     client_instructions: List[Tuple[ClientProxy, EvaluateIns]],
     max_workers: Optional[int],
+    client_partition: str,
     timeout: Optional[float],
 ) -> EvaluateResultsAndFailures:
     """Evaluate client parameters currently on all selected clinets"""
@@ -496,7 +502,7 @@ def evaluate_clients_parameters(
     #     )
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         submitted_fs = {
-            executor.submit(evaluate_client_parameters, client_proxy, ins, timeout)
+            executor.submit(evaluate_client_parameters, client_proxy, ins, client_partition, timeout)
             for client_proxy, ins in client_instructions
         }
         finished_fs, _ = concurrent.futures.wait(
@@ -517,23 +523,39 @@ def evaluate_clients_parameters(
 def evaluate_client_parameters(
     client: ClientProxy,
     ins: EvaluateIns,
+    client_partition: str,
     timeout: Optional[float] = None,
 ):
     ins.config["cid"] = client.cid
     parameters_ref = ray.put(ins.parameters)
     config_ref = ray.put(ins.config)
-    # future_evaluate_res = evaluate_parameters.remote(
-    #     parameters_ref,
-    #     config_ref,
-    # )
-    # future_evaluate_res = evaluate_parameters_by_client_data.remote(
-    #     parameters_ref,
-    #     config_ref,
-    # )
-    future_evaluate_res = evaluate_parameters_by_before_shuffle_fog_data.remote(
-        parameters_ref,
-        config_ref,
-    )
+    if client_partition == "iid": # フォグのtestデータで評価
+        log(
+            INFO,
+            "evaluate_parameters.remote() is called",
+        )
+        future_evaluate_res = evaluate_parameters.remote(
+            parameters_ref,
+            config_ref,
+        )
+    elif "part-noniid" in client_partition: # シャッフル前のフォグのtestデータで評価
+        log(
+            INFO,
+            "evaluate_parameters_by_before_shuffle_fog_data.remote() is called",
+        )
+        future_evaluate_res = evaluate_parameters_by_before_shuffle_fog_data.remote(
+            parameters_ref,
+            config_ref,
+        )
+    else: # クライアントのtestデータで評価
+        log(
+            INFO,
+            "evaluate_parameters_by_client_data.remote() is called",
+        )
+        future_evaluate_res = evaluate_parameters_by_client_data.remote(
+            parameters_ref,
+            config_ref,
+        )
     try:
         res = ray.get(future_evaluate_res, timeout=timeout)
     except Exception as ex:
