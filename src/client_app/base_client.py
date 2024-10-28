@@ -45,19 +45,19 @@ class FlowerClient(Client):
         self.clsid = None
         self.attribute = "client"
 
+        # dataset configuration
+        self.dataset = config["dataset_name"]
+        self.target = config["target_name"]
+
         # clsid の取得
         # log(INFO, "get clsid at FlowerRayClient cid: %s", cid)
-        file_path = "./data/FashionMNIST/partitions/noniid-label2_part-noniid/client/clustered_client_list.json"
+        file_path = f"./data/{self.dataset}/partitions/{self.target}/client/clustered_client_list.json"
         with open(file_path, 'r') as file:
             data = json.load(file)
         cluster_data = data[self.fid]
         for clsid, cids in cluster_data.items():
             if int(self.cid) in cids:
                 self.clsid = clsid
-
-        # dataset configuration
-        self.dataset = config["dataset_name"]
-        self.target = config["target_name"]
 
         self.trainset = load_federated_client_dataset(
             dataset_name=self.dataset,

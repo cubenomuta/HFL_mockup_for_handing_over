@@ -67,6 +67,8 @@ class RayFlowerFogProxy(Server, FogProxy):
         self.fid = fid
         self.attribute = "fog"
         self.config = config
+        self.dataset = self.config["dataset_name"]
+        self.target = self.config["target_name"]
 
         # client configurations
         self.cids = [
@@ -209,8 +211,7 @@ class RayFlowewrClusterDMLFogProxy(RayFlowerFogProxy):
 
         # clsid: [cid] の辞書
         self.cluster_dict: Dict[str, List[Scalar]] = {}
-        # 一旦固定値いれる
-        file_path = "./data/FashionMNIST/partitions/noniid-label2_part-noniid/client/clustered_client_list.json"
+        file_path = f"./data/{self.dataset}/partitions/{self.target}/client/clustered_client_list.json"
         with open(file_path, 'r') as file:
             data = json.load(file)
         for clsid, cids in data[self.fid].items():
