@@ -15,7 +15,7 @@ seed=1234
 cluster_alg="kmeans"
 # cluster_alg="hierarchical"
 
-save_dir="./data/${dataset}/partitions/f_${num_fogs}_c_${num_clients}_${cluster_alg}_${fog_partitions}_${client_partitions}"
+save_dir="./data/${dataset}/partitions/${fog_partitions}_${client_partitions}"
 
 if [ ! -e "${save_dir}" ]; then
     mkdir -p "${save_dir}/logs/"
