@@ -573,28 +573,28 @@ def evaluate_client_parameters(
     parameters_ref = ray.put(ins.parameters)
     config_ref = ray.put(ins.config)
     if client_partition == "iid": # フォグのtestデータで評価
-        log(
-            INFO,
-            "evaluate_parameters.remote() is called",
-        )
+        # log(
+        #     INFO,
+        #     "evaluate_parameters.remote() is called",
+        # )
         future_evaluate_res = evaluate_parameters.remote(
             parameters_ref,
             config_ref,
         )
     elif "part-noniid" in client_partition: # シャッフル前のフォグのtestデータで評価
-        log(
-            INFO,
-            "evaluate_parameters_by_before_shuffle_fog_data.remote() is called",
-        )
+        # log(
+        #     INFO,
+        #     "evaluate_parameters_by_before_shuffle_fog_data.remote() is called",
+        # )
         future_evaluate_res = evaluate_parameters_by_before_shuffle_fog_data.remote(
             parameters_ref,
             config_ref,
         )
     else: # クライアントのtestデータで評価
-        log(
-            INFO,
-            "evaluate_parameters_by_client_data.remote() is called",
-        )
+        # log(
+        #     INFO,
+        #     "evaluate_parameters_by_client_data.remote() is called",
+        # )
         future_evaluate_res = evaluate_parameters_by_client_data.remote(
             parameters_ref,
             config_ref,
