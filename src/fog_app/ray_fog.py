@@ -150,35 +150,78 @@ class RayFlowerFogProxy(Server, FogProxy):
             "fid": self.fid,
         }
         evaluate_config.update(ins.config)
-        parameters_ref = ray.put(ins.parameters)
-        evaluate_config_ref = ray.put(evaluate_config)
+        # parameters_ref = ray.put(ins.parameters)
+        # evaluate_config_ref = ray.put(evaluate_config)
 
-        future_evaluate_res = evaluate_parameters.remote(
-            parameters_ref, evaluate_config_ref
+        # future_evaluate_res = evaluate_parameters.remote(
+        #     parameters_ref, evaluate_config_ref
+        # )
+
+        # try:
+        #     res = ray.get(future_evaluate_res, timeout=timeout)
+        # except Exception as ex:
+        #     log(DEBUG, ex)
+        #     raise ex
+        # result = cast(Dict[str, Scalar], res)
+        # # release ObjectRefs in object_store_memory
+        # ray.internal.free(parameters_ref)
+        # ray.internal.free(evaluate_config_ref)
+        # ray.internal.free(future_evaluate_res)
+
+        # # Assing the same model results for belonging clients
+        # metrics = {
+        #     "accuracy": {int(cid): result["acc"] for cid in self.cids},
+        #     "loss": {int(cid): result["loss"] for cid in self.cids},
+        # }
+
+        server_round: int = int(ins.config["server_round"])
+
+        client_instructions = self.strategy.configure_client_evaluate(
+            server_round=server_round,
+            client_parameters=ins.parameters,
+            config=evaluate_config,
+            client_manager=self._client_manager,
         )
+        if not client_instructions:
+            log(INFO, "evaluate_round %s: no clients selected, cancel", server_round)
+            return None
+        log(
+            INFO,
+            "evaluate() on fog fid=%s: strategy sampled %s clients (out of %s)",
+            self.fid,
+            len(client_instructions),
+            self._client_manager.num_available(),
+        )
+        self.set_max_workers(max_workers=len(client_instructions))
 
-        try:
-            res = ray.get(future_evaluate_res, timeout=timeout)
-        except Exception as ex:
-            log(DEBUG, ex)
-            raise ex
-        result = cast(Dict[str, Scalar], res)
-        # release ObjectRefs in object_store_memory
-        ray.internal.free(parameters_ref)
-        ray.internal.free(evaluate_config_ref)
-        ray.internal.free(future_evaluate_res)
+        client_partition = self.target.split('_')[1]
 
-        # Assing the same model results for belonging clients
-        metrics = {
-            "accuracy": {int(cid): result["acc"] for cid in self.cids},
-            "loss": {int(cid): result["loss"] for cid in self.cids},
-        }
+        results, failures = evaluate_clients_parameters(
+            client_instructions=client_instructions,
+            max_workers=self.max_workers,
+            client_partition=client_partition,
+            timeout=None,
+        )
+        log(
+            INFO,
+            "Fed Fog evaluate() on fog fid=%s: received %s results and %s failures",
+            self.fid,
+            len(results),
+            len(failures),
+        )
+        # Aggregate evaluation results
+        aggregated_result: Tuple[
+            Optional[Parameters],
+            Dict[str, Scalar],
+        ] = self.strategy.aggregate_evaluate(server_round, results, failures)
+
+        loss_aggregated, metrics_aggregated = aggregated_result
 
         return EvaluateRes(
             Status(Code.OK, message="Success evaluate"),
-            loss=float(result["loss"]),
-            num_examples=int(result["num_examples"]),
-            metrics=metrics,
+            loss=float(loss_aggregated),
+            num_examples=int(ins.config["batch_size"]),
+            metrics=metrics_aggregated,
         )
 
     def reconnect(self, ins: ReconnectIns, timeout: Optional[float]) -> DisconnectRes:
@@ -530,28 +573,28 @@ def evaluate_client_parameters(
     parameters_ref = ray.put(ins.parameters)
     config_ref = ray.put(ins.config)
     if client_partition == "iid": # フォグのtestデータで評価
-        # log(
-        #     INFO,
-        #     "evaluate_parameters.remote() is called",
-        # )
+        log(
+            INFO,
+            "evaluate_parameters.remote() is called",
+        )
         future_evaluate_res = evaluate_parameters.remote(
             parameters_ref,
             config_ref,
         )
     elif "part-noniid" in client_partition: # シャッフル前のフォグのtestデータで評価
-        # log(
-        #     INFO,
-        #     "evaluate_parameters_by_before_shuffle_fog_data.remote() is called",
-        # )
+        log(
+            INFO,
+            "evaluate_parameters_by_before_shuffle_fog_data.remote() is called",
+        )
         future_evaluate_res = evaluate_parameters_by_before_shuffle_fog_data.remote(
             parameters_ref,
             config_ref,
         )
     else: # クライアントのtestデータで評価
-        # log(
-        #     INFO,
-        #     "evaluate_parameters_by_client_data.remote() is called",
-        # )
+        log(
+            INFO,
+            "evaluate_parameters_by_client_data.remote() is called",
+        )
         future_evaluate_res = evaluate_parameters_by_client_data.remote(
             parameters_ref,
             config_ref,
