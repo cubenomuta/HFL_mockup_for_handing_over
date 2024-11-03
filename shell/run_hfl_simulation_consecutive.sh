@@ -29,7 +29,7 @@ seed=1234
 
 for target in "${targets[@]}"; do
     time=`date '+%Y%m%d%H%M'`
-    exp_dir="./simulation/${dataset}/f_${num_fogs}_c${num_clients}_${target}/${strategy}_${server_model}_${client_model}/run_${time}"
+    exp_dir="./simulation/${dataset}/f_${num_fogs}_c_${num_clients}_${target}/${strategy}_${server_model}_${client_model}/run_${time}"
 
     if [ ! -e "${exp_dir}" ]; then
         mkdir -p "${exp_dir}/logs/"
