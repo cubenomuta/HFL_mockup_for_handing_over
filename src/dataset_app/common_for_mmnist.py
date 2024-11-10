@@ -26,11 +26,13 @@ def create_mmnist_iid(
     if test == False: # train data
         if (list_labels_idxes is None) and (classes is None): # フォグ
             samples_per_party = int(6000 / num_parties)
+            print(f"create_iid samples_per_party: {samples_per_party}")
         # else:
         #     samples_per_party = (len(list_labels_idxes[0]) / num_parties)
     else: # test data
         if (list_labels_idxes is None) and (classes is None): # フォグ
             samples_per_party = int(1000 / num_parties)
+            print(f"create_iid samples_per_party: {samples_per_party}")
         # else:
         #     samples_per_party = (len(list_labels_idxes[0]) / num_parties)
 
@@ -51,12 +53,13 @@ def create_mmnist_iid(
         for key, _ in list_labels_idxes.items():
             samples_per_party = (len(list_labels_idxes[key]) / num_parties)
 
-    net_dataidx_map = {i: [] for i in range(num_parties)}
+    net_dataidx_map = {i: [] for i in range(num_parties)} # fid: サンプル or cid: サンプル
     label_indexes = {k: 0 for k in classes}  # 各ラベルの現在位置を追跡
     id = 0
 
-    for k in classes:   
-        while len(net_dataidx_map[num_parties-1]) < samples_per_party * (k+1): # 一番最後のpartyがsamples_per_partyに達するまで
+    for index, k in enumerate(classes):   
+        while len(net_dataidx_map[num_parties-1]) < samples_per_party * (index+1): # 一番最後のpartyがsamples_per_partyに達するまで # フォグのときはこれでいいがクライアントはダメ
+        # while len(net_dataidx_map[num_parties-1]) < 60: # 一番最後のpartyがsamples_per_partyに達するまで
             label_idx = list_labels_idxes[k][label_indexes[k]]
             net_dataidx_map[id % num_parties].append(label_idx)
             label_indexes[k] += 1  # 次の位置に移動
@@ -96,13 +99,15 @@ def create_mmnist_noniid(
         # train_samples_per_class = int(
         #     train_labels.shape[0] / (num_parties * num_classes)
         # )
-        train_samples_per_class = int(
-            6000 / num_parties
-        )
+        # train_samples_per_class = int( # なんか違う
+        #     6000 / num_parties
+        # )
         # test_samples_per_class = int(test_labels.shape[0] / (num_parties * num_classes))
-        test_samples_per_class = int(
-            1000 / num_parties
-        )
+        # test_samples_per_class = int( # なんか違う
+        #     1000 / num_parties
+        # )
+        train_samples_per_class = 6000 # 一旦
+        test_samples_per_class = 1000
     elif (
         classes is None
         or list_train_labels_idxes is None
@@ -123,20 +128,32 @@ def create_mmnist_noniid(
         # test_samples_per_class = int(num_test / (num_parties * num_classes))
         train_samples_per_class = int(num_train / (num_parties * 10)) # MMNISTの11クラスだとエラーになるため
         test_samples_per_class = int(num_test / (num_parties * 10))
+        print(f"num_train: {num_train}, num_test: {num_test}, num_parties: {num_parties}")
+        print(f"train_samples_per_class: {train_samples_per_class}, test_samples_per_class: {test_samples_per_class}")
 
     train_json_data = {i: [] for i in range(num_parties)}
     test_json_data = {i: [] for i in range(num_parties)}
 
     class_ids = list(np.random.permutation(classes))
+    train_label_indexes = {k: 0 for k in classes}
+    test_label_indexes = {k: 0 for k in classes}
     for id in range(num_parties):
         for i in range(num_classes):
             cls = class_ids.pop()
             for _ in range(train_samples_per_class):
-                train_idx = list_train_labels_idxes[cls].pop()
+                # train_idx = list_train_labels_idxes[cls].pop()
+                train_idx = list_train_labels_idxes[cls][train_label_indexes[cls]]
                 train_json_data[id].append(train_idx)
+                train_label_indexes[cls] += 1
+                if train_label_indexes[cls] >= len(list_train_labels_idxes[cls]):
+                    train_label_indexes[cls] = 0
             for _ in range(test_samples_per_class):
-                test_idx = list_test_labels_idxes[cls].pop()
+                # test_idx = list_test_labels_idxes[cls].pop()
+                test_idx = list_test_labels_idxes[cls][test_label_indexes[cls]]
                 test_json_data[id].append(test_idx)
+                test_label_indexes[cls] += 1
+                if test_label_indexes[cls] >= len(list_test_labels_idxes[cls]):
+                    test_label_indexes[cls] = 0
             if len(class_ids) == 0:
                 class_ids = list(np.random.permutation(classes))
 

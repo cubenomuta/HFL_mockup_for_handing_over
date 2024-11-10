@@ -79,6 +79,7 @@ def partitioning(
     if args.dataset == "OrganAMNIST": # クラスによってサンプル数が異なるため分岐
         print("OrganAMNIST dataset") # DEBUG
         if partitions == "iid" or partitions == "part-noniid":
+            print("create_mmnist_iid is called")
             train_json_data = create_mmnist_iid(
                 labels=train_labels,
                 num_parties=num_parties,
