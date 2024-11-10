@@ -20,6 +20,8 @@ from dataset_app.common import (
 from flwr.common import NDArray
 from dataset_app.kmeans_clustering import run_kmeans_clustering
 from dataset_app.hierarchical_clustering import run_hierarchical_clustering
+from dataset_app.linkage_clustering import run_linkage_clustering
+from dataset_app.dbscan_clustering import run_dbscan_clustering
 from dataset_app.kl_divergence_in_clients import save_kl_divergence
 
 parser = argparse.ArgumentParser("Create dataset partitions for fogs and clients")
@@ -49,7 +51,7 @@ parser.add_argument(
     "--cluster_alg",
     type=str,
     required=True,
-    choices=["kmeans", "hierarchical"],
+    choices=["kmeans", "hierarchical", "linkage", "dbscan"],
     help="clustering algorithm",
 )
 
@@ -318,8 +320,14 @@ def main(args):
 
     if cluster_alg == "kmeans":
         print("run kmeans clustering")
-        run_kmeans_clustering(save_dir=save_dir, output_file=output_file_path, num_fogs=num_fogs, num_clients=num_clients)
-    elif cluster_alg == "hierarchical":
+        run_kmeans_clustering(save_dir=save_dir, output_file=output_file_path, num_fogs=num_fogs, num_clients=num_clients, num_classes=num_classes)
+    elif cluster_alg == "linkage":
+        print ("run linkage clustering")
+        run_linkage_clustering(save_dir=save_dir, output_file=output_file_path, num_fogs=num_fogs, num_clients=num_clients, num_classes=num_classes)
+    elif cluster_alg == "dbscan":
+        print("run dbscan clustering")
+        run_dbscan_clustering(save_dir=save_dir, output_file=output_file_path, num_fogs=num_fogs, num_clients=num_clients, num_classes=num_classes)
+    elif cluster_alg == "hierarchical": # kl_divergenceを計算してから実行
         print("run hierarchical clustering")
         save_kl_divergence(save_dir=save_dir)
         run_hierarchical_clustering(save_dir=save_dir, output_file=output_file_path)

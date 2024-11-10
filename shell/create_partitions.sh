@@ -7,15 +7,24 @@ num_fogs=5
 num_clients=100
 
 # dataset configuration
-dataset="FashionMNIST"
+dataset="OrganAMNIST"
 fog_partitions=$1 # "noniid-label2,1", "iid"
 client_partitions=$2 # "noniid-label2,1", "iid"
 client_shuffle_ratio=0.2
 seed=1234
 cluster_alg="kmeans"
 # cluster_alg="hierarchical"
+# cluster_alg="linkage"
+# cluster_alg="dbscan"
 
-save_dir="./data/${dataset}/partitions/${fog_partitions}_${client_partitions}"
+
+if [[ "$client_partitions" == *"noniid-dir"* ]]; then
+    save_dir="./data/${dataset}/partitions/${fog_partitions}_${client_partitions}_${cluster_alg}"
+elif [[ "$client_partitions" == *"part-noniid"* ]]; then
+    save_dir="./data/${dataset}/partitions/${fog_partitions}_${client_partitions}_${client_shuffle_ratio}"
+else
+    save_dir="./data/${dataset}/partitions/${fog_partitions}_${client_partitions}"
+fi
 
 if [ ! -e "${save_dir}" ]; then
     mkdir -p "${save_dir}/logs/"

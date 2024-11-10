@@ -1,13 +1,9 @@
 import json
 import numpy as np
-from sklearn.cluster import KMeans
+from scipy.cluster.hierarchy import linkage, fcluster
 from sklearn.metrics import silhouette_score, calinski_harabasz_score, davies_bouldin_score
 from pathlib import Path
 import matplotlib.pyplot as plt
-from kneed import KneeLocator
-
-# save_dir = "./data/FashionMNIST/partitions/noniid-label2_part-noniid_0.2/client"
-# save_dir = "./data/FashionMNIST/partitions/iid_noniid-dir0.5/client"
 
 def load_json_file(file_path: str) -> dict:
     """JSONファイルを読み込む関数"""
@@ -21,83 +17,69 @@ def save_json_file(data: dict, file_path: str) -> None:
         json.dump(data, f, ensure_ascii=False)
 
 def determine_optimal_clusters(X, fid, save_dir, max_clusters=10):
-    """エルボー法とシルエット法を使って最適なクラスタ数を決定"""
-    sse = []
+    """シルエット法、Calinski-Harabaszスコア、Davies-Bouldinスコアを使って最適なクラスタ数を決定"""
     silhouette_scores = []
     calinski_harabasz_scores = []
     davies_bouldin_scores = []
     k_values = range(2, max_clusters + 1)
     
-    for k in k_values:
-        kmeans = KMeans(n_clusters=k, random_state=0, n_init='auto')
-        clusters = kmeans.fit_predict(X)
-        # 各種スコアの計算
-        sse.append(kmeans.inertia_)  # SSE (エルボー法)
-        silhouette_scores.append(silhouette_score(X, clusters))  # シルエットスコア
-        calinski_harabasz_scores.append(calinski_harabasz_score(X, clusters))  # Calinski-Harabaszスコア
-        davies_bouldin_scores.append(davies_bouldin_score(X, clusters))  # Davies-Bouldinスコア
+    # 階層型クラスタリングのリンク生成
+    linkage_matrix = linkage(X, method='average')
     
-    # エルボー法プロット
-    plt.figure()
-    plt.plot(k_values, sse, marker='o')
-    plt.xlabel('Number of Clusters (k)')
-    plt.ylabel('SSE')
-    plt.title('Elbow Method for Optimal k')
-    plt.savefig(save_dir / f'elbow_method_plot_{fid}.svg')
-    print(f"エルボー法のプロットを '{save_dir / f'elbow_method_plot_{fid}.svg'}' に保存しました。")
+    for k in k_values:
+        # 階層型クラスタリングの結果を指定クラスタ数に分割
+        clusters = fcluster(linkage_matrix, k, criterion='maxclust')
+        
+        # クラスタ数が2以上のときのみスコアを計算
+        if len(set(clusters)) > 1:
+            silhouette_scores.append(silhouette_score(X, clusters, metric="euclidean"))
+            calinski_harabasz_scores.append(calinski_harabasz_score(X, clusters))
+            davies_bouldin_scores.append(davies_bouldin_score(X, clusters))
+        else:
+            # クラスタ数が1の場合、スコアをNoneで埋める
+            silhouette_scores.append(None)
+            calinski_harabasz_scores.append(None)
+            davies_bouldin_scores.append(None)
     
     # シルエットスコアプロット
     plt.figure()
     plt.plot(k_values, silhouette_scores, marker='o')
     plt.xlabel('Number of Clusters (k)')
     plt.ylabel('Silhouette Score')
-    plt.title('Silhouette Score for Optimal k')
-    plt.savefig(save_dir / f'silhouette_score_plot_{fid}.svg')
-    print(f"シルエットスコアのプロットを '{save_dir / f'silhouette_score_plot_{fid}.svg'}' に保存しました。")
+    plt.title('linkage() Silhouette Score for Optimal k')
+    plt.savefig(save_dir / f'linkage_silhouette_score_plot_{fid}.svg')
+    print(f"シルエットスコアをプロットしました{silhouette_scores}")
 
     # Calinski-Harabaszスコアプロット
     plt.figure()
     plt.plot(k_values, calinski_harabasz_scores, marker='o')
     plt.xlabel('Number of Clusters (k)')
     plt.ylabel('Calinski-Harabasz Score')
-    plt.title('Calinski-Harabasz Score for Optimal k')
-    plt.savefig(save_dir / f'calinski_harabasz_score_plot_{fid}.svg')
-    print(f"Calinski-Harabaszスコアのプロットを '{save_dir / f'calinski_harabasz_score_plot_{fid}.svg'}' に保存しました。")
+    plt.title('linkage() Calinski-Harabasz Score for Optimal k')
+    plt.savefig(save_dir / f'linkage_calinski_harabasz_score_plot_{fid}.svg')
+    print(f"Calinski-Harabaszスコアをプロットしました{calinski_harabasz_scores}")
     
     # Davies-Bouldinスコアプロット
     plt.figure()
     plt.plot(k_values, davies_bouldin_scores, marker='o')
     plt.xlabel('Number of Clusters (k)')
     plt.ylabel('Davies-Bouldin Score')
-    plt.title('Davies-Bouldin Score for Optimal k')
-    plt.savefig(save_dir / f'davies_bouldin_score_plot_{fid}.svg')
-    print(f"Davies-Bouldinスコアのプロットを '{save_dir / f'davies_bouldin_score_plot_{fid}.svg'}' に保存しました。")
+    plt.title('linkage() Davies-Bouldin Score for Optimal k')
+    plt.savefig(save_dir / f'linkage_davies_bouldin_score_plot_{fid}.svg')
+    print(f"Davies-Bouldinスコアをプロットしました{davies_bouldin_scores}")
     
     # 最適クラスタ数をシルエットスコアの最大値から決定
-    # optimal_k = k_values[np.argmax(silhouette_scores)]
-    # print(f"最適なクラスタ数（シルエット法）: {optimal_k}")
-
-    # エルボーポイントの特定
-    kneedle = KneeLocator(k_values, sse, curve='convex', direction='decreasing')
-    elbow_k = kneedle.elbow
-    print(f"エルボー法で選択されたクラスタ数: {elbow_k}")
-
-    # エルボー法で選択されたポイントの前後のクラスタ数を候補にする
-    candidate_k = [elbow_k - 1, elbow_k, elbow_k + 1]
-    candidate_k = [k for k in candidate_k if k in k_values]
-
-    # 候補の中でシルエットスコアが最大のものを選択(index -2でアクセスできる)
-    best_k = max(candidate_k, key=lambda k: silhouette_scores[k - 2])
-    print(f"最終的に選択されたクラスタ数: {best_k}")
+    best_k = k_values[np.argmax(silhouette_scores)]
+    print(f"最適なクラスタ数（シルエット法）: {best_k}")
 
     return best_k
 
-def kmeans_clustering(data: dict, save_dir, num_fogs: int, num_clients: int, num_classes: int, step: int = 100) -> dict:
-    """各フォグサーバ範囲で最適なクラスタ数を決定し、クラスタリングを実行"""
+def hierarchical_clustering(data: dict, save_dir, num_fogs: int, num_clients: int, num_classes: int, step: int = 100) -> dict:
+    """各フォグサーバ範囲で最適なクラスタ数を決定し、階層型クラスタリングを実行"""
     step = num_clients
     clustered_data = {}
 
-    for i in range(0, num_fogs*num_clients, step):
+    for i in range(0, num_fogs * num_clients, step):
         print(f"\nフォグサーバ範囲 {i}~{i + step - 1}")
         # フォグID（fid）に基づいてデータをまとめる
         fid = str(i // step)  # フォグIDを文字列に変換
@@ -122,9 +104,11 @@ def kmeans_clustering(data: dict, save_dir, num_fogs: int, num_clients: int, num
         # 最適なクラスタ数を決定
         optimal_clusters = determine_optimal_clusters(X, fid, save_dir)
         
-        # KMeansによるクラスタリング
-        kmeans = KMeans(n_clusters=optimal_clusters, random_state=0, n_init='auto')
-        clusters = kmeans.fit_predict(X)
+        # 階層型クラスタリングのリンク生成
+        linkage_matrix = linkage(X, method='average')
+        
+        # 最適なクラスタ数でクラスタリング
+        clusters = fcluster(linkage_matrix, optimal_clusters, criterion='maxclust')
 
         # 同じクラスタID（clsid）のクライアントをまとめる
         clustered_data[fid] = {}
@@ -142,7 +126,7 @@ def kmeans_clustering(data: dict, save_dir, num_fogs: int, num_clients: int, num
 
     return sorted_clustered_data
 
-def run_kmeans_clustering(save_dir: str, output_file: str, num_fogs: int, num_clients: int, num_classes: int): 
+def run_linkage_clustering(save_dir: str, output_file: str, num_fogs: int, num_clients: int, num_classes: int): 
     """クラスタリングプロセスを実行する関数"""
 
     input_file = Path(save_dir) / "client_train_data_stats.json"
@@ -150,19 +134,18 @@ def run_kmeans_clustering(save_dir: str, output_file: str, num_fogs: int, num_cl
     print("元のデータ:", list(data.items())[:5])  # 最初の5件を表示
     
     # クラスタリングを実行
-    clustered_data = kmeans_clustering(data, save_dir, num_fogs, num_clients, num_classes)
+    clustered_data = hierarchical_clustering(data, save_dir, num_fogs, num_clients, num_classes)
     
     # クラスタリング結果を保存
     save_json_file(clustered_data, output_file)
     print(f"クラスタリングが完了し、結果は '{output_file}' に保存されました。")
-
 
 def main():
     save_dir = "./data/FashionMNIST/partitions/iid_noniid-dir0.5/client"
 
     input_file_path = Path(save_dir) / "client_train_data_stats.json"
     output_file_path = Path(save_dir) / "clustered_client_list.json"
-    run_kmeans_clustering(input_file=input_file_path, output_file=output_file_path)
+    run_linkage_clustering(save_dir=save_dir, output_file=output_file_path, num_fogs=1, num_clients=100, num_classes=10)
 
 if __name__ == "__main__":
     main()
