@@ -60,11 +60,14 @@ def main(args):
             # Plot each client's data in a matrix-like layout
             for idx, (client_id, class_counts) in enumerate(cluster_data.items()):
                 ax = axes[idx // num_columns, idx % num_columns] if num_rows > 1 else axes[idx % num_columns]
-                ax.bar(class_counts.keys(), class_counts.values(), color="skyblue")
+                all_classes = list(range(10))
+                counts = [class_counts.get(str(cls_id), 0) for cls_id in all_classes]
+                # ax.bar(class_counts.keys(), class_counts.values(), color="skyblue")
+                ax.bar(all_classes, counts, color="skyblue")
                 ax.set_title(f"Client {client_id}")
                 ax.set_xlabel("Class ID")
                 ax.set_ylabel("Sample Count")
-                ax.set_xticks(range(10))
+                ax.set_xticks(all_classes)
                 ax.set_ylim(0, 80)
 
             # Hide any unused subplots
