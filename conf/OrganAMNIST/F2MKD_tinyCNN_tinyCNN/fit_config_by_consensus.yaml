@@ -1,0 +1,9 @@
+batch_size: 60
+global_epochs: 5
+client_epochs: 4
+local_epochs: 1
+lr: 0.05
+weight_decay: 0.0005
+alpha: 0.8
+beta: 0.2
+kd_from_clients: "by_consensus"
