@@ -17,6 +17,11 @@ from dataset_app.common import (
     record_net_data_stats,
     create_json_data_stats
 )
+from dataset_app.common_for_mmnist import (
+    create_mmnist_iid,
+    create_mmnist_noniid,
+    create_mmnist_noniid_dir,
+)
 from flwr.common import NDArray
 from dataset_app.kmeans_clustering import run_kmeans_clustering
 from dataset_app.hierarchical_clustering import run_hierarchical_clustering
@@ -42,7 +47,7 @@ parser.add_argument(
     "--dataset",
     type=str,
     required=True,
-    choices=["FashionMNIST", "MNIST", "CIFAR10", "CIFAR100"],
+    choices=["OrganAMNIST", "FashionMNIST", "MNIST", "CIFAR10", "CIFAR100"],
     help="dataset name",
 )
 parser.add_argument("--save_dir", type=str, required=True, help="save directory")
@@ -71,6 +76,50 @@ def partitioning(
     list_train_labels_idxes: Optional[Dict[int, List[int]]] = None,
     list_test_labels_idxes: Optional[Dict[int, List[int]]] = None,
 ):
+    if args.dataset == "OrganAMNIST": # クラスによってサンプル数が異なるため分岐
+        print("OrganAMNIST dataset") # DEBUG
+        if partitions == "iid" or partitions == "part-noniid":
+            train_json_data = create_mmnist_iid(
+                labels=train_labels,
+                num_parties=num_parties,
+                classes=classes,
+                list_labels_idxes=list_train_labels_idxes,
+                test=False,
+            )
+            test_json_data = create_mmnist_iid(
+                labels=test_labels,
+                num_parties=num_parties,
+                classes=classes,
+                list_labels_idxes=list_test_labels_idxes,
+                test=True,
+            )
+        elif partitions >= "noniid-label1" and partitions <= "noniid-label9":
+            train_json_data, test_json_data = create_mmnist_noniid(
+                train_labels=train_labels,
+                test_labels=test_labels,
+                num_parties=num_parties,
+                num_classes=int(partitions[-1]),
+                classes=classes,
+                list_train_labels_idxes=list_train_labels_idxes,
+                list_test_labels_idxes=list_test_labels_idxes,
+            )
+        elif partitions[:10] == "noniid-dir":
+            train_json_data, dirichlet_dist = create_mmnist_noniid_dir(
+                labels=train_labels,
+                num_class=10,
+                dirichlet_dist=None,
+                num_parties=num_parties,
+                alpha=float(partitions[10:]),
+                seed=seed,
+                classes=classes,
+                list_labels_idxes=list_train_labels_idxes,
+            )
+            test_json_data = create_consistent_test_data(
+                labels=test_labels,
+                dirichlet_dist=dirichlet_dist,
+                num_parties=num_parties,
+            )
+        return train_json_data, test_json_data
     if partitions == "iid" or partitions == "part-noniid":
         train_json_data = create_iid(
             labels=train_labels,
@@ -138,6 +187,12 @@ def main(args):
     client_shuffle_ratio = args.client_shuffle_ratio
     seed = args.seed
     cluster_alg = args.cluster_alg
+    if dataset == "CIFAR100":
+        num_classes = 100
+    if dataset == "OrganAMNIST":
+        num_classes = 11
+    else:
+        num_classes = 10
 
     _, y_train, _, y_test = load_numpy_dataset(dataset_name=dataset)
 
@@ -152,7 +207,7 @@ def main(args):
 
     if (client_partitions == "part-noniid"):
         write_json(fog_train_json_data, save_dir=save_dir, file_name="before_shuffle_train_data")
-        write_json(fog_test_json_data, save_dir=save_dir, file_name="before_shuffle_test_datale_test_data")
+        write_json(fog_test_json_data, save_dir=save_dir, file_name="before_shuffle_test_data")
     else:
         write_json(fog_train_json_data, save_dir=save_dir, file_name="train_data")
         write_json(fog_test_json_data, save_dir=save_dir, file_name="test_data")
@@ -166,6 +221,7 @@ def main(args):
         client_test_idxs = fog_test_json_data[fid]
         classes = list(np.unique(y_train[client_train_idxs]))
         list_train_labels_idxes = {k: [] for k in classes}
+        # print(f"type(y_train[idx]): {type(y_train[0])}")
         for idx in client_train_idxs:
             list_train_labels_idxes[y_train[idx]].append(idx)
         list_test_labels_idxes = {k: [] for k in classes}
