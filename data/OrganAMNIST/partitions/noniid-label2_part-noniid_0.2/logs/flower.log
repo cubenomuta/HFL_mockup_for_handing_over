@@ -1,0 +1,50 @@
+/home/nomutaku/.local/share/virtualenvs/HFL_mockup-DUtf9jvu/lib/python3.10/site-packages/sklearn/base.py:1473: ConvergenceWarning: Number of distinct clusters (5) found smaller than n_clusters (6). Possibly due to duplicate points in X.
+  return fit_method(estimator, *args, **kwargs)
+/home/nomutaku/.local/share/virtualenvs/HFL_mockup-DUtf9jvu/lib/python3.10/site-packages/sklearn/base.py:1473: ConvergenceWarning: Number of distinct clusters (5) found smaller than n_clusters (7). Possibly due to duplicate points in X.
+  return fit_method(estimator, *args, **kwargs)
+/home/nomutaku/.local/share/virtualenvs/HFL_mockup-DUtf9jvu/lib/python3.10/site-packages/sklearn/base.py:1473: ConvergenceWarning: Number of distinct clusters (5) found smaller than n_clusters (8). Possibly due to duplicate points in X.
+  return fit_method(estimator, *args, **kwargs)
+/home/nomutaku/.local/share/virtualenvs/HFL_mockup-DUtf9jvu/lib/python3.10/site-packages/sklearn/base.py:1473: ConvergenceWarning: Number of distinct clusters (5) found smaller than n_clusters (9). Possibly due to duplicate points in X.
+  return fit_method(estimator, *args, **kwargs)
+/home/nomutaku/.local/share/virtualenvs/HFL_mockup-DUtf9jvu/lib/python3.10/site-packages/sklearn/base.py:1473: ConvergenceWarning: Number of distinct clusters (5) found smaller than n_clusters (10). Possibly due to duplicate points in X.
+  return fit_method(estimator, *args, **kwargs)
+/home/nomutaku/.local/share/virtualenvs/HFL_mockup-DUtf9jvu/lib/python3.10/site-packages/sklearn/base.py:1473: ConvergenceWarning: Number of distinct clusters (5) found smaller than n_clusters (6). Possibly due to duplicate points in X.
+  return fit_method(estimator, *args, **kwargs)
+/home/nomutaku/.local/share/virtualenvs/HFL_mockup-DUtf9jvu/lib/python3.10/site-packages/sklearn/base.py:1473: ConvergenceWarning: Number of distinct clusters (5) found smaller than n_clusters (7). Possibly due to duplicate points in X.
+  return fit_method(estimator, *args, **kwargs)
+/home/nomutaku/.local/share/virtualenvs/HFL_mockup-DUtf9jvu/lib/python3.10/site-packages/sklearn/base.py:1473: ConvergenceWarning: Number of distinct clusters (5) found smaller than n_clusters (8). Possibly due to duplicate points in X.
+  return fit_method(estimator, *args, **kwargs)
+/home/nomutaku/.local/share/virtualenvs/HFL_mockup-DUtf9jvu/lib/python3.10/site-packages/sklearn/base.py:1473: ConvergenceWarning: Number of distinct clusters (5) found smaller than n_clusters (9). Possibly due to duplicate points in X.
+  return fit_method(estimator, *args, **kwargs)
+/home/nomutaku/.local/share/virtualenvs/HFL_mockup-DUtf9jvu/lib/python3.10/site-packages/sklearn/base.py:1473: ConvergenceWarning: Number of distinct clusters (5) found smaller than n_clusters (10). Possibly due to duplicate points in X.
+  return fit_method(estimator, *args, **kwargs)
+/home/nomutaku/.local/share/virtualenvs/HFL_mockup-DUtf9jvu/lib/python3.10/site-packages/sklearn/base.py:1473: ConvergenceWarning: Number of distinct clusters (5) found smaller than n_clusters (6). Possibly due to duplicate points in X.
+  return fit_method(estimator, *args, **kwargs)
+/home/nomutaku/.local/share/virtualenvs/HFL_mockup-DUtf9jvu/lib/python3.10/site-packages/sklearn/base.py:1473: ConvergenceWarning: Number of distinct clusters (5) found smaller than n_clusters (7). Possibly due to duplicate points in X.
+  return fit_method(estimator, *args, **kwargs)
+/home/nomutaku/.local/share/virtualenvs/HFL_mockup-DUtf9jvu/lib/python3.10/site-packages/sklearn/base.py:1473: ConvergenceWarning: Number of distinct clusters (5) found smaller than n_clusters (8). Possibly due to duplicate points in X.
+  return fit_method(estimator, *args, **kwargs)
+/home/nomutaku/.local/share/virtualenvs/HFL_mockup-DUtf9jvu/lib/python3.10/site-packages/sklearn/base.py:1473: ConvergenceWarning: Number of distinct clusters (5) found smaller than n_clusters (9). Possibly due to duplicate points in X.
+  return fit_method(estimator, *args, **kwargs)
+/home/nomutaku/.local/share/virtualenvs/HFL_mockup-DUtf9jvu/lib/python3.10/site-packages/sklearn/base.py:1473: ConvergenceWarning: Number of distinct clusters (5) found smaller than n_clusters (10). Possibly due to duplicate points in X.
+  return fit_method(estimator, *args, **kwargs)
+/home/nomutaku/.local/share/virtualenvs/HFL_mockup-DUtf9jvu/lib/python3.10/site-packages/sklearn/base.py:1473: ConvergenceWarning: Number of distinct clusters (5) found smaller than n_clusters (6). Possibly due to duplicate points in X.
+  return fit_method(estimator, *args, **kwargs)
+/home/nomutaku/.local/share/virtualenvs/HFL_mockup-DUtf9jvu/lib/python3.10/site-packages/sklearn/base.py:1473: ConvergenceWarning: Number of distinct clusters (5) found smaller than n_clusters (7). Possibly due to duplicate points in X.
+  return fit_method(estimator, *args, **kwargs)
+/home/nomutaku/.local/share/virtualenvs/HFL_mockup-DUtf9jvu/lib/python3.10/site-packages/sklearn/base.py:1473: ConvergenceWarning: Number of distinct clusters (5) found smaller than n_clusters (8). Possibly due to duplicate points in X.
+  return fit_method(estimator, *args, **kwargs)
+/home/nomutaku/.local/share/virtualenvs/HFL_mockup-DUtf9jvu/lib/python3.10/site-packages/sklearn/base.py:1473: ConvergenceWarning: Number of distinct clusters (5) found smaller than n_clusters (9). Possibly due to duplicate points in X.
+  return fit_method(estimator, *args, **kwargs)
+/home/nomutaku/.local/share/virtualenvs/HFL_mockup-DUtf9jvu/lib/python3.10/site-packages/sklearn/base.py:1473: ConvergenceWarning: Number of distinct clusters (5) found smaller than n_clusters (10). Possibly due to duplicate points in X.
+  return fit_method(estimator, *args, **kwargs)
+/home/nomutaku/.local/share/virtualenvs/HFL_mockup-DUtf9jvu/lib/python3.10/site-packages/sklearn/base.py:1473: ConvergenceWarning: Number of distinct clusters (5) found smaller than n_clusters (6). Possibly due to duplicate points in X.
+  return fit_method(estimator, *args, **kwargs)
+/home/nomutaku/.local/share/virtualenvs/HFL_mockup-DUtf9jvu/lib/python3.10/site-packages/sklearn/base.py:1473: ConvergenceWarning: Number of distinct clusters (5) found smaller than n_clusters (7). Possibly due to duplicate points in X.
+  return fit_method(estimator, *args, **kwargs)
+/home/nomutaku/.local/share/virtualenvs/HFL_mockup-DUtf9jvu/lib/python3.10/site-packages/sklearn/base.py:1473: ConvergenceWarning: Number of distinct clusters (5) found smaller than n_clusters (8). Possibly due to duplicate points in X.
+  return fit_method(estimator, *args, **kwargs)
+/home/nomutaku/.local/share/virtualenvs/HFL_mockup-DUtf9jvu/lib/python3.10/site-packages/sklearn/base.py:1473: ConvergenceWarning: Number of distinct clusters (5) found smaller than n_clusters (9). Possibly due to duplicate points in X.
+  return fit_method(estimator, *args, **kwargs)
+/home/nomutaku/.local/share/virtualenvs/HFL_mockup-DUtf9jvu/lib/python3.10/site-packages/sklearn/base.py:1473: ConvergenceWarning: Number of distinct clusters (5) found smaller than n_clusters (10). Possibly due to duplicate points in X.
+  return fit_method(estimator, *args, **kwargs)
