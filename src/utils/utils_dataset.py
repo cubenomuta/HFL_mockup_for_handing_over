@@ -9,10 +9,13 @@ from dataset_app import (
     CIFAR100_truncated,
     FashionMNIST_client_truncated, #追加
     FashionMNIST_truncated,
+    OrganAMNIST_client_truncated,   #追加
+    OrganAMNIST_truncated,          #追加
     FederatedCelebaVerification,
     FederatedUsbcamVerification,
     MNIST_truncated,
 )
+from medmnist import OrganAMNIST
 from flwr.common import Scalar
 from torch.utils.data import Dataset, random_split
 from torchvision.datasets import CIFAR10, CIFAR100, FashionMNIST
@@ -52,6 +55,31 @@ def load_centralized_dataset(
         dataset = FashionMNIST(
             root=root, train=train, transform=transform, download=download
         )
+    elif dataset_name == "OrganAMNIST":
+        transform = transforms.Compose(
+            [
+                transforms.Resize((32, 32)), 
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    (0.5,),
+                    (0.5,),
+                ),
+            ]
+        )
+        root = DATA_ROOT
+        if train:
+            dataset = OrganAMNIST(
+                root=root, split='train', transform=transform, download=download
+            )
+        else:
+            dataset = OrganAMNIST(
+                root=root, split='test', transform=transform, download=download
+            )
+        target = dataset.labels
+        if target.ndim > 1:
+            target = target.flatten()
+        dataset.labels = target
+
     elif dataset_name == "CIFAR10":
         transform = transforms.Compose(
             [
@@ -130,6 +158,27 @@ def load_federated_dataset( # クラスタ用
             ]
         )
         dataset = FashionMNIST_truncated(
+            root=DATA_ROOT,
+            fid=fid,
+            clsid=clsid,
+            train=train,
+            target=target,
+            attribute=attribute,
+            transform=transform,
+            download=download,
+        )
+    elif dataset_name == "OrganAMNIST":
+        transform = transforms.Compose(
+            [
+                transforms.Resize((32, 32)),
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    (0.5,),
+                    (0.5,),
+                ),
+            ]
+        )
+        dataset = OrganAMNIST_truncated(
             root=DATA_ROOT,
             fid=fid,
             clsid=clsid,
@@ -234,6 +283,27 @@ def load_federated_client_dataset( # クライアント用
             download=download,
             shuffle=shuffle,
         )
+    elif dataset_name == "OrganAMNIST":
+        transform = transforms.Compose(
+            [
+                transforms.Resize((32, 32)),
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    (0.5,),
+                    (0.5,),
+                ),
+            ]
+        )
+        dataset = OrganAMNIST_client_truncated(
+            root=DATA_ROOT,
+            id=id,
+            train=train,
+            target=target,
+            attribute=attribute,
+            transform=transform,
+            download=download,
+            shuffle=shuffle,
+        )
     elif dataset_name == "CIFAR10":
         transform = transforms.Compose(
             [
@@ -288,6 +358,9 @@ def configure_dataset(dataset_name: str, target: str = None) -> Dict[str, Scalar
     elif dataset_name == "FashionMNIST":
         input_spec = (1, 28, 28)
         out_dims = 10
+    elif dataset_name == "OrganAMNIST":
+        input_spec = (1, 32, 32)
+        out_dims = 11
     elif dataset_name == "CIFAR10":
         input_spec = (3, 32, 32)
         out_dims = 10

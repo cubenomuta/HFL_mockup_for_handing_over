@@ -586,7 +586,7 @@ def evaluate_client_parameters(
             parameters_ref,
             config_ref,
         )
-    else: # クライアントのtestデータで評価
+    elif "noniid-dir" in client_partition: # クライアントのtestデータで評価
         # log(
         #     INFO,
         #     "evaluate_parameters_by_client_data.remote() is called",
@@ -595,6 +595,9 @@ def evaluate_client_parameters(
             parameters_ref,
             config_ref,
         )
+    else:
+        raise ValueError("client_partition is invalid.")
+
     try:
         res = ray.get(future_evaluate_res, timeout=timeout)
     except Exception as ex:

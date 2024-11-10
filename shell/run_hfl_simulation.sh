@@ -13,8 +13,8 @@ fi
 strategy="F2MKDC"
 server_model="tinyCNN"
 client_model="tinyCNN"
-dataset="FashionMNIST"
-target=iid_noniid-dir0.5
+dataset="OrganAMNIST"
+target="noniid-label2_part-noniid_0.2"
 num_rounds=300
 num_fogs=5
 num_clients=100
@@ -35,7 +35,7 @@ if [ ! -e "${exp_dir}" ]; then
 fi
 echo "create dir to ${exp_dir}"
 
-ray start --head --min-worker-port 20000 --max-worker-port 29999 --num-cpus 20 --num-gpus 8
+ray start --head --min-worker-port 20000 --max-worker-port 29999 --num-cpus 5
 sleep 1 
 
 python ./local/hfl_simulation.py \
@@ -59,5 +59,3 @@ trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM
 wait
 ray stop -f
 rm -rf /tmp/ray
-
-sudo shutdown -h now

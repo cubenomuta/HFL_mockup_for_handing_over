@@ -9,160 +9,66 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
-from torchvision.datasets import CIFAR10, CIFAR100, MNIST, FashionMNIST
-from torchvision.transforms import transforms
-from medmnist import OrganAMNIST
-
-from .federated_dataset import CIFAR10_truncated, CIFAR100_truncated
 
 DATA_ROOT = os.environ["DATA_ROOT"]
 
-
-def load_numpy_dataset(dataset_name: str):
-    if dataset_name == "MNIST":
-        x_train, y_train, x_test, y_test = load_mnist()
-    elif dataset_name == "FashionMNIST":
-        x_train, y_train, x_test, y_test = load_fmnist()
-    elif dataset_name == "CIFAR10":
-        x_train, y_train, x_test, y_test = load_cifar10()
-    elif dataset_name == "CIFAR100":
-        x_train, y_train, x_test, y_test = load_cifar100()
-    elif dataset_name == "OrganAMNIST":
-        x_train, y_train, x_test, y_test = load_organamnist()
-    else:
-        raise NotImplementedError(f"{dataset_name} is no implemented")
-    return x_train, y_train, x_test, y_test
-
-
-def load_fmnist():
-    transform = transforms.Compose([transforms.ToTensor()])
-
-    traindata = FashionMNIST(
-        root=DATA_ROOT, train=True, download=True, transform=transform
-    )
-    testdata = FashionMNIST(
-        root=DATA_ROOT, train=False, download=True, transform=transform
-    )
-
-    X_train, y_train = traindata.data, traindata.targets
-    X_test, y_test = testdata.data, testdata.targets
-
-    X_train = X_train.data.numpy()
-    y_train = y_train.data.numpy()
-    X_test = X_test.data.numpy()
-    y_test = y_test.data.numpy()
-    return (X_train, y_train, X_test, y_test)
-
-
-def load_mnist():
-    transform = transforms.Compose([transforms.ToTensor()])
-
-    traindata = MNIST(root=DATA_ROOT, train=True, download=True, transform=transform)
-    testdata = MNIST(root=DATA_ROOT, train=False, download=True, transform=transform)
-
-    X_train, y_train = traindata.data, traindata.targets
-    X_test, y_test = testdata.data, testdata.targets
-
-    X_train = X_train.data.numpy()
-    y_train = y_train.data.numpy()
-    X_test = X_test.data.numpy()
-    y_test = y_test.data.numpy()
-    return (X_train, y_train, X_test, y_test)
-
-
-def load_cifar10():
-    transform = transforms.Compose(
-        [
-            transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616)),
-        ]
-    )
-
-    traindata = CIFAR10_truncated(
-        root=DATA_ROOT, train=True, download=True, transform=transform
-    )
-    testdata = CIFAR10_truncated(
-        root=DATA_ROOT, train=False, download=True, transform=transform
-    )
-
-    X_train, y_train = traindata.data, traindata.target
-    X_test, y_test = testdata.data, testdata.target
-    return (X_train, y_train, X_test, y_test)
-
-
-def load_cifar100():
-    transform = transforms.Compose(
-        [
-            transforms.ToTensor(),
-            transforms.Normalize((0.5070, 0.4865, 0.4409), (0.2673, 0.2564, 0.2762)),
-        ]
-    )
-
-    traindata = CIFAR100_truncated(
-        root=DATA_ROOT, train=True, download=True, transform=transform
-    )
-    testdata = CIFAR100_truncated(
-        root=DATA_ROOT, train=False, download=True, transform=transform
-    )
-
-    X_train, y_train = traindata.data, traindata.target
-    X_test, y_test = testdata.data, testdata.target
-    return (X_train, y_train, X_test, y_test)
-
-def load_organamnist():
-    transform = transforms.Compose([transforms.ToTensor()])
-
-    # データのロード
-    traindata = OrganAMNIST(root=DATA_ROOT, split='train', transform=transform, download=True)
-    testdata = OrganAMNIST(root=DATA_ROOT, split='test', transform=transform, download=True)
-
-    # データとラベルを取得 (NumPy配列として取得される)
-    X_train, y_train = traindata.imgs, traindata.labels
-    X_test, y_test = testdata.imgs, testdata.labels
-
-    print(f"before y_test: {y_test}")
-
-    if y_train.ndim > 1:
-        y_train = y_train.flatten()
-
-    if y_test.ndim > 1:
-        y_test = y_test.flatten()
-
-    print(f"after y_test: {y_test}")
-
-    return X_train, y_train, X_test, y_test
-
-def create_iid(
+def create_mmnist_iid(
     labels: np.ndarray,
     num_parties: int,
     classes: List[int] = None,
     list_labels_idxes: Dict[int, List[int]] = None,
+    test: bool = False,
 ):
-    if labels.shape[0] % num_parties:
-        raise ValueError("Imbalanced classes are not allowed")
+    # if labels.shape[0] % num_parties:
+    #     raise ValueError("Imbalanced classes are not allowed")
+
+    # FMNISTの1クラス分に合わせる
+    if test == False: # train data
+        if (list_labels_idxes is None) and (classes is None): # フォグ
+            samples_per_party = int(6000 / num_parties)
+        # else:
+        #     samples_per_party = (len(list_labels_idxes[0]) / num_parties)
+    else: # test data
+        if (list_labels_idxes is None) and (classes is None): # フォグ
+            samples_per_party = int(1000 / num_parties)
+        # else:
+        #     samples_per_party = (len(list_labels_idxes[0]) / num_parties)
 
     if classes is None and list_labels_idxes is None:
-        print("creating label_idxes ...")
         classes = list(np.unique(labels))
         list_labels_idxes = {k: np.where(labels == k)[0].tolist() for k in classes}
+        # train data
+        if test == False: 
+            samples_per_party = int(6000 / num_parties)
+        # test data
+        else:
+            samples_per_party = int(1000 / num_parties)
     elif classes is None or list_labels_idxes is None:
         raise ValueError("Invalid Argument Error")
     else:
         classes = classes
         list_labels_idxes = list_labels_idxes
+        for key, _ in list_labels_idxes.items():
+            samples_per_party = (len(list_labels_idxes[key]) / num_parties)
 
     net_dataidx_map = {i: [] for i in range(num_parties)}
+    label_indexes = {k: 0 for k in classes}  # 各ラベルの現在位置を追跡
     id = 0
-    for k in classes:
-        while len(list_labels_idxes[k]) > 0:
-            label_idx = list_labels_idxes[k].pop()
+
+    for k in classes:   
+        while len(net_dataidx_map[num_parties-1]) < samples_per_party * (k+1): # 一番最後のpartyがsamples_per_partyに達するまで
+            label_idx = list_labels_idxes[k][label_indexes[k]]
             net_dataidx_map[id % num_parties].append(label_idx)
+            label_indexes[k] += 1  # 次の位置に移動
             id += 1
+            if (label_indexes[k] >= len(list_labels_idxes[k])): # インデックスが後ろまで行ったら前に戻す
+                label_indexes[k] = 0
     record_net_data_stats(labels, net_dataidx_map)
+    # net_dataidx_mapの型
     return net_dataidx_map
 
 
-def create_noniid(
+def create_mmnist_noniid(
     train_labels: np.ndarray,
     test_labels: np.ndarray,
     num_parties: int,
@@ -171,16 +77,15 @@ def create_noniid(
     list_train_labels_idxes: Dict[int, List[int]] = None,
     list_test_labels_idxes: Dict[int, List[int]] = None,
 ):
-    if train_labels.shape[0] % (num_parties * num_classes):
-        # print(f"train_labels.shape[0]: {train_labels.shape[0]}, train_labels.shape[0] % (num_parties * num_classes): {train_labels.shape[0] % (num_parties * num_classes)}")
-        raise ValueError("Imbalanced classes are not allowed")
+    # if train_labels.shape[0] % (num_parties * num_classes):
+    #     print(f"train_labels.shape[0]: {train_labels.shape[0]}, train_labels.shape[0] % (num_parties * num_classes): {train_labels.shape[0] % (num_parties * num_classes)}")
+    #     raise ValueError("Imbalanced classes are not allowed")
 
-    if (
+    if ( # フォグ
         classes is None
         and list_train_labels_idxes is None
         and list_test_labels_idxes is None
     ):
-        print("creating label_idxes ...")
         classes = list(np.unique(train_labels))
         list_train_labels_idxes = {
             k: np.where(train_labels == k)[0].tolist() for k in classes
@@ -188,10 +93,16 @@ def create_noniid(
         list_test_labels_idxes = {
             k: np.where(test_labels == k)[0].tolist() for k in classes
         }
+        # train_samples_per_class = int(
+        #     train_labels.shape[0] / (num_parties * num_classes)
+        # )
         train_samples_per_class = int(
-            train_labels.shape[0] / (num_parties * num_classes)
+            6000 / num_parties
         )
-        test_samples_per_class = int(test_labels.shape[0] / (num_parties * num_classes))
+        # test_samples_per_class = int(test_labels.shape[0] / (num_parties * num_classes))
+        test_samples_per_class = int(
+            1000 / num_parties
+        )
     elif (
         classes is None
         or list_train_labels_idxes is None
@@ -208,8 +119,10 @@ def create_noniid(
         num_test = 0
         for val in list_test_labels_idxes.values():
             num_test += len(val)
-        train_samples_per_class = int(num_train / (num_parties * num_classes))
-        test_samples_per_class = int(num_test / (num_parties * num_classes))
+        # train_samples_per_class = int(num_train / (num_parties * num_classes))
+        # test_samples_per_class = int(num_test / (num_parties * num_classes))
+        train_samples_per_class = int(num_train / (num_parties * 10)) # MMNISTの11クラスだとエラーになるため
+        test_samples_per_class = int(num_test / (num_parties * 10))
 
     train_json_data = {i: [] for i in range(num_parties)}
     test_json_data = {i: [] for i in range(num_parties)}
@@ -233,7 +146,7 @@ def create_noniid(
     return train_json_data, test_json_data
 
 
-def create_noniid_dir(
+def create_mmnist_noniid_dir(
     labels: np.ndarray,
     num_class: int,
     dirichlet_dist: np.ndarray,

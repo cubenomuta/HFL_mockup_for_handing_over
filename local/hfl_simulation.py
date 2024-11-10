@@ -61,7 +61,7 @@ parser.add_argument(
     "--dataset",
     type=str,
     required=True,
-    choices=["CIFAR10", "FashionMNIST", "MNIST", "CelebA"],
+    choices=["CIFAR10", "FashionMNIST", "OrganAMNIST", "MNIST", "CelebA"],
     help="FL config: dataset name",
 )
 parser.add_argument(
