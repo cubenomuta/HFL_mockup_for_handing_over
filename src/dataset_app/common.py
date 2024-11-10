@@ -11,6 +11,7 @@ import numpy as np
 import torch
 from torchvision.datasets import CIFAR10, CIFAR100, MNIST, FashionMNIST
 from torchvision.transforms import transforms
+from medmnist import OrganAMNIST
 
 from .federated_dataset import CIFAR10_truncated, CIFAR100_truncated
 
@@ -22,6 +23,8 @@ def load_numpy_dataset(dataset_name: str):
         x_train, y_train, x_test, y_test = load_mnist()
     elif dataset_name == "FashionMNIST":
         x_train, y_train, x_test, y_test = load_fmnist()
+    elif dataset_name == "OrganAMNIST":
+        x_train, y_train, x_test, y_test = load_organamnist()
     elif dataset_name == "CIFAR10":
         x_train, y_train, x_test, y_test = load_cifar10()
     elif dataset_name == "CIFAR100":
@@ -71,6 +74,22 @@ def load_mnist():
     X_test = X_test.data.numpy()
     y_test = y_test.data.numpy()
     return (X_train, y_train, X_test, y_test)
+
+def load_organamnist():
+    transform = transforms.Compose([transforms.ToTensor()])
+    # データのロード
+    traindata = OrganAMNIST(root=DATA_ROOT, split='train', transform=transform, download=True)
+    testdata = OrganAMNIST(root=DATA_ROOT, split='test', transform=transform, download=True)
+    # データとラベルを取得 (NumPy配列として取得される)
+    X_train, y_train = traindata.imgs, traindata.labels
+    X_test, y_test = testdata.imgs, testdata.labels
+    print(f"before y_test: {y_test}")
+    if y_train.ndim > 1:
+        y_train = y_train.flatten()
+    if y_test.ndim > 1:
+        y_test = y_test.flatten()
+    print(f"after y_test: {y_test}")
+    return X_train, y_train, X_test, y_test
 
 
 def load_cifar10():
