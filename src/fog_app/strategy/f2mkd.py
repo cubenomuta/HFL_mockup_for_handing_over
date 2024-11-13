@@ -1,5 +1,6 @@
 from logging import WARNING
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from logging import DEBUG, INFO
 
 import flwr as fl
 from flwr.common import (
@@ -59,6 +60,7 @@ class F2MKD(FedAvg):
         self,
         server_round: int,
         client_parameters_dict: Dict[str, Parameters],
+        client_models_name_dict: Dict[str, str],
         config: Dict[str, Any] = None,
         client_manager: ClientManager = None,
     ) -> List[Tuple[ClientProxy, FitIns]]:
@@ -78,7 +80,10 @@ class F2MKD(FedAvg):
         client_instructions = [
             (
                 client,
-                FitIns(parameters=client_parameters_dict[client.cid], config=config),
+                FitIns(
+                    parameters=client_parameters_dict[client.cid], 
+                    config={**config, "client_model_name": client_models_name_dict[client.cid]}
+                ),
             )
             for client in clients
         ]
@@ -132,6 +137,7 @@ class F2MKD(FedAvg):
         self,
         server_round: int,
         client_parameters_dict: Dict[str, Parameters],
+        client_models_name_dict: Dict[str, str],
         config: Dict[str, Any] = None,
         client_manager: ClientManager = None,
     ) -> List[Tuple[ClientProxy, EvaluateIns]]:
@@ -151,7 +157,8 @@ class F2MKD(FedAvg):
             (
                 client,
                 EvaluateIns(
-                    parameters=client_parameters_dict[client.cid], config=config
+                    parameters=client_parameters_dict[client.cid], 
+                    config={**config, "client_model_name": client_models_name_dict[client.cid]}
                 ),
             )
             for client in clients

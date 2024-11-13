@@ -49,7 +49,7 @@ def launch_and_fit(
     client_fn: ClientFn, cid: str, fit_ins: common.FitIns
 ) -> common.FitRes:
     """Exectue fit remotely."""
-    client: Client = _create_client(client_fn, cid)
+    client: Client = _create_client(client_fn, cid, fit_ins)
     res = maybe_call_fit(
         client=client,
         fit_ins=fit_ins,
@@ -58,7 +58,7 @@ def launch_and_fit(
     return res
 
 
-def _create_client(client_fn: ClientFn, cid: str) -> Client:
+def _create_client(client_fn: ClientFn, cid: str, fit_ins: common.FitIns) -> Client:
     """Create a client instance."""
-    client_like: ClientLike = client_fn(cid)
+    client_like: ClientLike = client_fn(cid, fit_ins.config["client_model_name"])
     return to_client(client_like=client_like)

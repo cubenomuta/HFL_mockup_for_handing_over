@@ -237,7 +237,8 @@ class RayFlowerDMLFogProxy(RayFlowerFogProxy):
         client_manager: ClientManager,
         client_fn: Callable[[str], Client],
         strategy: Optional[Strategy] = None,
-        client_init_parameters: Optional[Parameters] = None,
+        client_init_parameters_dict: Dict[str, Parameters] = {},
+        client_models_name_dict: Dict[str, str] = {},
     ):
         super(RayFlowerDMLFogProxy, self).__init__(
             fid=fid,
@@ -246,8 +247,13 @@ class RayFlowerDMLFogProxy(RayFlowerFogProxy):
             client_fn=client_fn,
             strategy=strategy,
         )
+        # self.client_models_name_dict: Dict[str, str] = client_models_name_dict
+        self.client_models_name_dict: Dict[str, str] = {
+            str(cid): client_models_name_dict[str(cid)]
+            for cid in self.cids
+        }
         self.client_parameters_dict: Dict[str, Parameters] = {
-            str(cid): client_init_parameters for cid in self.cids
+            str(cid): client_init_parameters_dict[self.client_models_name_dict[str(cid)]] for cid in self.cids
         }
 
     def fit(self, ins: FitIns, timeout: Optional[float]) -> FitRes:
@@ -259,7 +265,7 @@ class RayFlowerDMLFogProxy(RayFlowerFogProxy):
         self.set_max_workers(max_workers=len(self.cids))
         distillation_from_server_config = {
             "teacher_model": self.config["server_model_name"],
-            "student_model": self.config["client_model_name"],
+            # "student_model": self.config["client_model_name"],
             "dataset_name": self.config["dataset_name"],
             "target_name": self.config["target_name"],
             "fid": self.fid,
@@ -268,6 +274,7 @@ class RayFlowerDMLFogProxy(RayFlowerFogProxy):
         results, failures = distillation_from_server(
             server_parameters=server_parameters,
             client_parameters_dict=self.client_parameters_dict,
+            client_models_name_dict=self.client_models_name_dict,
             config=distillation_from_server_config,
             max_workers=self.max_workers,
         )
@@ -286,6 +293,7 @@ class RayFlowerDMLFogProxy(RayFlowerFogProxy):
         client_instructions = self.strategy.configure_fit(
             server_round=server_round,
             client_parameters_dict=self.client_parameters_dict,
+            client_models_name_dict=self.client_models_name_dict,
             config=ins.config,
             client_manager=self._client_manager,
         )
@@ -321,7 +329,7 @@ class RayFlowerDMLFogProxy(RayFlowerFogProxy):
 
         # Distillation from multiple clients to server.
         distillation_from_clients_config = {
-            "teacher_model": self.config["client_model_name"],
+            # "teacher_model": self.config["client_model_name"],
             "student_model": self.config["server_model_name"],
             "dataset_name": self.config["dataset_name"],
             "target_name": self.config["target_name"],
@@ -332,6 +340,10 @@ class RayFlowerDMLFogProxy(RayFlowerFogProxy):
             teacher_parameters_list=[
                 client_parameters
                 for client_parameters in self.client_parameters_dict.values()
+            ],
+            teacher_models_name_list=[
+                client_model_name
+                for client_model_name in self.client_models_name_dict.values()
             ],
             student_parameters=server_parameters,
             config=distillation_from_clients_config,
@@ -354,7 +366,7 @@ class RayFlowerDMLFogProxy(RayFlowerFogProxy):
         # Evaluate configuration
         server_round: int = int(ins.config["server_round"])
         evaluate_config = {
-            "client_model_name": self.config["client_model_name"],
+            # "client_model_name": self.config["client_model_name"],
             "dataset_name": self.config["dataset_name"],
             "target_name": self.config["target_name"],
             "fid": self.fid,
@@ -364,6 +376,7 @@ class RayFlowerDMLFogProxy(RayFlowerFogProxy):
         client_instructions = self.strategy.configure_evaluate(
             server_round=server_round,
             client_parameters_dict=self.client_parameters_dict,
+            client_models_name_dict=self.client_models_name_dict,
             config=evaluate_config,
             client_manager=self._client_manager,
         )
@@ -412,15 +425,16 @@ class RayFlowerDMLFogProxy(RayFlowerFogProxy):
 def distillation_from_server(
     server_parameters: Parameters,
     client_parameters_dict: Dict[str, Parameters],
+    client_models_name_dict: Dict[str, str],
     config: Dict[str, Any],
     max_workers: Optional[int],
 ):
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         submitted_fs = {
             executor.submit(
-                distillation, cid, server_parameters, client_parameters, config
+                distillation, cid, server_parameters, client_parameters, {**config, "student_model": client_model_name}
             )
-            for cid, client_parameters in client_parameters_dict.items()
+            for (cid, client_parameters), (_, client_model_name) in zip(client_parameters_dict.items(), client_models_name_dict.items())
         }
         finished_fs, _ = concurrent.futures.wait(
             fs=submitted_fs,
@@ -490,30 +504,33 @@ def distillation(
 
 def distillation_from_clients(
     teacher_parameters_list: List[Parameters],
+    teacher_models_name_list: List[str],
     student_parameters: Parameters,
     config: Dict[str, Any],
 ):
     teacher_parameters_list_ref = ray.put(teacher_parameters_list)
+    teacher_models_name_list_ref = ray.put(teacher_models_name_list)
     student_parameters_ref = ray.put(student_parameters)
     config_ref = ray.put(config)
     if config["kd_from_clients"] == "normal": 
         future_distillation_res = distillation_multiple_parameters.remote(
             teacher_parameters_list_ref,
+            teacher_models_name_list_ref,
             student_parameters_ref,
             config_ref,
         )
-    elif config["kd_from_clients"] == "by_consensus":
-        future_distillation_res = distillation_multiple_parameters_by_consensus.remote(
-            teacher_parameters_list_ref,
-            student_parameters_ref,
-            config_ref,
-        )
-    elif config["kd_from_clients"] == "with_extra_term":
-        future_distillation_res = distillation_multiple_parameters_with_extra_term.remote(
-            teacher_parameters_list_ref,
-            student_parameters_ref,
-            config_ref,
-        )
+    # elif config["kd_from_clients"] == "by_consensus":
+    #     future_distillation_res = distillation_multiple_parameters_by_consensus.remote(
+    #         teacher_parameters_list_ref,
+    #         student_parameters_ref,
+    #         config_ref,
+    #     )
+    # elif config["kd_from_clients"] == "with_extra_term":
+    #     future_distillation_res = distillation_multiple_parameters_with_extra_term.remote(
+    #         teacher_parameters_list_ref,
+    #         student_parameters_ref,
+    #         config_ref,
+    #     )
     else:
         raise ValueError("Invalid knowledge distillation method.")
     

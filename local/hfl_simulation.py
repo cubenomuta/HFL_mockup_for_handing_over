@@ -7,6 +7,9 @@ import warnings
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+from logging import DEBUG, INFO
+from flwr.common.logger import log
+
 import numpy as np
 import torch
 import yaml
@@ -45,11 +48,17 @@ parser.add_argument(
     choices=["tinyCNN", "ResNet18", "GNResNet18"],
     help="FL config: server-side model name",
 )
+# parser.add_argument(
+#     "--client_model",
+#     type=str,
+#     required=True,
+#     choices=["tinyCNN", "ResNet18", "GNResNet18"],
+#     help="FL config: client-side model name",
+# )
 parser.add_argument(
-    "--client_model",
+    "--client_models",
     type=str,
     required=True,
-    choices=["tinyCNN", "ResNet18", "GNResNet18"],
     help="FL config: client-side model name",
 )
 parser.add_argument(
@@ -135,30 +144,41 @@ def main():
     dataset_config: Dict[str, str] = configure_dataset(
         dataset_name=args.dataset, target=args.target
     )
-    client_net: Net = load_model(
-        name=args.client_model,
-        input_spec=dataset_config["input_spec"],
-        out_dims=dataset_config["out_dims"],
-    )
-    client_init_parameters: Parameters = ndarrays_to_parameters(
-        client_net.get_weights()
-    )
+
+    client_init_parameters_dict: Dict[str, Parameters] = {}
+    client_model_list = args.client_models.split(",")
+    for client_model_name in client_model_list:
+        client_net: Net = load_model(
+            name=client_model_name,
+            input_spec=dataset_config["input_spec"],
+            out_dims=dataset_config["out_dims"],
+        )
+        client_init_parameters: Parameters = ndarrays_to_parameters(
+            client_net.get_weights()
+        )
+        client_init_parameters_dict[client_model_name] = client_init_parameters
 
     client_config = {
         "dataset_name": args.dataset,
         "target_name": args.target,
         "server_model_name": args.server_model,
-        "client_model_name": args.client_model,
-        "paramters": client_init_parameters,
+        # "client_model_name": args.client_model,
+        # "paramters": client_init_parameters, # 使ってなかったかも
+        "parameters_dict": client_init_parameters_dict, # クライアント側でmodel_nameをキーとしてパラメータを取得するようにする
     }
     fog_config = {
         "dataset_name": args.dataset,
         "target_name": args.target,
         "server_model_name": args.server_model,
-        "client_model_name": args.client_model,
+        # "client_model_name": args.client_model,
         "num_clients": args.num_clients,
     }
     server_config = ServerConfig(num_rounds=args.num_rounds)
+
+    data_path = f"./data/{args.dataset}/partitions/{args.target}/client"
+    json_path = Path(data_path) / "client_models_name_dict.json"
+    with open(json_path, "r") as json_file:
+        client_models_name_dict = json.load(json_file)
 
     assert os.path.exists(args.yaml_path)
     with open(args.yaml_path, "r") as f:
@@ -267,7 +287,9 @@ def main():
             on_evaluate_config_fn=eval_config,
         )
 
-        def client_fn(cid: str) -> Client:
+        def client_fn(cid: str, client_model_name: Optional[str] = None) -> Client:
+            if client_model_name:
+                client_config["client_model_name"] = client_model_name
             return FlowerRayClient(cid, client_config)
 
         def fog_fn(fid: str) -> Fog:
@@ -278,7 +300,8 @@ def main():
                 client_manager=client_manager,
                 client_fn=client_fn,
                 strategy=fog_strategy,
-                client_init_parameters=client_init_parameters,
+                client_init_parameters_dict=client_init_parameters_dict,
+                client_models_name_dict=client_models_name_dict,
             )
 
     else:
