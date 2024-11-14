@@ -65,6 +65,9 @@ class F2MKDC(FedAvg):
 
         self.evaluate_metrics_cluster_aggregation_fn = evaluate_metrics_cluster_aggregation_fn
 
+    def __repr__(self):
+        return "F2MKDC"
+
     # hfl_server_appのfedvg.pyを参考にして作成
     # 返却値をリストにすると並列実行のプログラムが面倒なので、辞書にして返却
     def configure_cluster_fit(
@@ -93,6 +96,7 @@ class F2MKDC(FedAvg):
         self,
         server_round: int,
         client_parameters_dict: Dict[str, Parameters],
+        client_models_name_dict: Dict[str, str],
         config: Dict[str, Any] = None,
         client_manager: ClientManager = None,
     ) -> List[Tuple[ClientProxy, FitIns]]:
@@ -112,7 +116,10 @@ class F2MKDC(FedAvg):
         client_instructions = [
             (
                 client,
-                FitIns(parameters=client_parameters_dict[client.cid], config=config),
+                FitIns(
+                    parameters=client_parameters_dict[client.cid], 
+                    config={**config, "client_model_name": client_models_name_dict[client.cid]}
+                ),
             )
             for client in clients
         ]
@@ -124,6 +131,7 @@ class F2MKDC(FedAvg):
         server_round: int,
         pre_client_instructions: List[Tuple[ClientProxy, FitIns]],
         client_parameters_dict: Dict[str, Parameters],
+        client_models_name_dict: Dict[str, str],
         config: Dict[str, Any] = None,
         client_manager: ClientManager = None,
     ) -> List[Tuple[ClientProxy, FitIns]]:
@@ -143,7 +151,10 @@ class F2MKDC(FedAvg):
         client_instructions = [
             (
                 client,
-                FitIns(parameters=client_parameters_dict[client.cid], config=config),
+                FitIns(
+                    parameters=client_parameters_dict[client.cid], 
+                    config={**config, "client_model_name": client_models_name_dict[client.cid]}
+                ),
             )
             for client, _ in pre_client_instructions
         ]
@@ -224,6 +235,7 @@ class F2MKDC(FedAvg):
         self,
         server_round: int,
         client_parameters_dict: Dict[str, Parameters],
+        client_models_name_dict: Dict[str, str],
         config: Dict[str, Any] = None,
         client_manager: ClientManager = None,
     ) -> List[Tuple[ClientProxy, EvaluateIns]]:
@@ -243,7 +255,8 @@ class F2MKDC(FedAvg):
             (
                 client,
                 EvaluateIns(
-                    parameters=client_parameters_dict[client.cid], config=config
+                    parameters=client_parameters_dict[client.cid], 
+                    config={**config, "client_model_name": client_models_name_dict[client.cid]}
                 ),
             )
             for client in clients

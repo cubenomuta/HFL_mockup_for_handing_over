@@ -153,15 +153,11 @@ def distillation_parameters(
 @ray.remote
 def distillation_multiple_parameters(
     teacher_parameters_list: List[Parameters],
+    teacher_models_name_list: List[str],
     student_parameters: Parameters,
     config: Dict[str, Any],
 ) -> Parameters:
-    # log(
-    #     INFO,
-    #     "distillation_multiple_parameters() on fog fid: %s clsid: %s started",
-    #     config["fid"],
-    #     config["clsid"],
-    # )
+
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     # dataset configuration
     dataset = load_federated_dataset(
@@ -178,9 +174,9 @@ def distillation_multiple_parameters(
         target=config["target_name"],
     )
     teacher_net_list: List[Net] = []
-    for teacher_parameters in teacher_parameters_list:
+    for teacher_parameters, client_model_name in zip(teacher_parameters_list, teacher_models_name_list):
         teacher_net: Net = load_model(
-            name=config["teacher_model"],
+            name=client_model_name,
             input_spec=dataset_config["input_spec"],
             out_dims=dataset_config["out_dims"],
         )

@@ -12,7 +12,8 @@ fi
 # fl configuration
 strategy="F2MKDC"
 server_model="tinyCNN"
-client_model="tinyCNN"
+# client_model="tinyCNN"
+client_models="tinyCNN,tinyCNN_1conv" # csv形式
 dataset="OrganAMNIST"
 target="noniid-label2_part-noniid_0.2"
 num_rounds=300
@@ -21,12 +22,12 @@ num_clients=100
 fraction_fit=1
 
 # fit configuration
-yaml_path="./conf/${dataset}/${strategy}_${server_model}_${client_model}/fit_config.yaml"
+yaml_path="./conf/${dataset}/${strategy}_${server_model}_tinyCNN/fit_config.yaml"
 seed=1234
 echo "Running ${yaml_path}"
 
 time=`date '+%Y%m%d%H%M'`
-exp_dir="./simulation/${dataset}/f_${num_fogs}_c_${num_clients}_${target}/${strategy}_${server_model}_${client_model}/run_${time}"
+exp_dir="./simulation/${dataset}/f_${num_fogs}_c_${num_clients}_${target}/${strategy}_${server_model}_${client_models}/run_${time}"
 
 if [ ! -e "${exp_dir}" ]; then
     mkdir -p "${exp_dir}/logs/"
@@ -41,7 +42,7 @@ sleep 1
 python ./local/hfl_simulation.py \
 --strategy ${strategy} \
 --server_model ${server_model} \
---client_model ${client_model} \
+--client_models ${client_models} \
 --dataset ${dataset} \
 --target ${target} \
 --num_rounds ${num_rounds} \

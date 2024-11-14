@@ -107,21 +107,16 @@ class FlowerRayClientClusterProxy(Server, ClientClusterProxy):
             client.cid: fit_ins.parameters
             for client, fit_ins in client_instructions
         }
+        client_models_name_dict = {
+            client.cid: fit_ins.config["client_model_name"]
+            for client, fit_ins in client_instructions
+        }
 
-        # DEBUG OK
-        # log(
-        #     INFO,
-        #     "ClientCluster.fit() on fog fid=%s, clsid=%s: strategy sampled %s clients (out of %s)",
-        #     self.fid,
-        #     self.clsid,
-        #     len(client_instructions),
-        #     self._client_manager.num_available(),
-        # )
         # Distillation from server model to client models
         self.set_max_workers(max_workers=len(client_instructions))
         distillation_from_server_config = {
             "teacher_model": self.config["server_model_name"],
-            "student_model": self.config["client_model_name"],
+            # "student_model": self.config["client_model_name"],
             "dataset_name": self.config["dataset_name"],
             "target_name": self.config["target_name"],
             "fid": self.fid,
@@ -131,18 +126,10 @@ class FlowerRayClientClusterProxy(Server, ClientClusterProxy):
         results, failures = distillation_from_server(
             server_parameters=cluster_parameters,
             client_parameters_dict=client_parameters_dict,
+            client_models_name_dict=client_models_name_dict,
             config=distillation_from_server_config,
             max_workers=self.max_workers,
         )
-        # DEBUG OK
-        # log(
-        #     INFO,
-        #     "distillation_from_server() on fog fid=%s, clsid=%s: received %s results and %s failures",
-        #     self.fid,
-        #     self.clsid,
-        #     len(results),
-        #     len(failures),
-        # )
         if len(failures) > 0:
             raise ValueError("distillation is failed.")
         # 更新
@@ -155,6 +142,7 @@ class FlowerRayClientClusterProxy(Server, ClientClusterProxy):
             server_round=server_round,
             pre_client_instructions=client_instructions,
             client_parameters_dict=client_parameters_dict,
+            client_models_name_dict=client_models_name_dict,
             config=ins.config,
             client_manager=self._client_manager,
         )
@@ -177,14 +165,6 @@ class FlowerRayClientClusterProxy(Server, ClientClusterProxy):
             max_workers=self.max_workers,
             timeout=None,
         )
-        # log( # OK
-        #     INFO,
-        #     "fit_clients() on fog fid=%s, clsid=%s: received %s results and %s failures",
-        #     self.fid,
-        #     self.clsid,
-        #     len(results),
-        #     len(failures),
-        # )
 
         if len(failures) > 0:
             raise ValueError("Insufficient fit results from clients.")
@@ -193,7 +173,7 @@ class FlowerRayClientClusterProxy(Server, ClientClusterProxy):
 
         # Distillation from multiple clients to server.
         distillation_from_clients_config = {
-            "teacher_model": self.config["client_model_name"],
+            # "teacher_model": self.config["client_model_name"],
             "student_model": self.config["server_model_name"],
             "dataset_name": self.config["dataset_name"],
             "target_name": self.config["target_name"],
@@ -207,6 +187,10 @@ class FlowerRayClientClusterProxy(Server, ClientClusterProxy):
             teacher_parameters_list=[
                 client_parameters
                 for client_parameters in client_parameters_dict.values()
+            ],
+            teacher_models_name_list=[
+                client_model_name
+                for client_model_name in client_models_name_dict.values()
             ],
             student_parameters=cluster_parameters,
             config=distillation_from_clients_config,
@@ -328,18 +312,13 @@ class FlowerRayClientClusterProxy(Server, ClientClusterProxy):
             target=config["target_name"],
             attribute="fog",
         )
-        # log( # OK
-        #     INFO,
-        #     "testset: %s",
-        #     len(testset),
-        # )
         # model configuration
         dataset_config = configure_dataset(
             dataset_name=config["dataset_name"],
             target=config["target_name"],
         )
         net: Net = load_model(
-            name=config["client_model_name"],
+            name=config["server_model_name"],
             input_spec=dataset_config["input_spec"],
             out_dims=dataset_config["out_dims"],
         )
@@ -421,15 +400,16 @@ class FlowerRayClientClusterProxy(Server, ClientClusterProxy):
 def distillation_from_server(
     server_parameters: Parameters,
     client_parameters_dict: Dict[str, Parameters],
+    client_models_name_dict: Dict[str, str],
     config: Dict[str, Any],
     max_workers: Optional[int],
 ):
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         submitted_fs = {
             executor.submit(
-                distillation, cid, server_parameters, client_parameters, config
+                distillation, cid, server_parameters, client_parameters, {**config, "student_model": client_model_name}
             )
-            for cid, client_parameters in client_parameters_dict.items()
+            for (cid, client_parameters), (_, client_model_name) in zip(client_parameters_dict.items(), client_models_name_dict.items())  # 順番などをclient_parameters_dictとclient_models_name_dictで合わせる
         }
         finished_fs, _ = concurrent.futures.wait(
             fs=submitted_fs,
@@ -500,21 +480,18 @@ def distillation(
 
 def distillation_from_clients(
     teacher_parameters_list: List[Parameters],
+    teacher_models_name_list: List[str],
     student_parameters: Parameters,
     config: Dict[str, Any],
 ):
-    # DEBUG
-    # log(
-    #     INFO,
-    #     "distillation_from_clients() on fog fid=%s clsid=%s started",
-    #     config["fid"],
-    #     config["clsid"],
-    # )
+
     teacher_parameters_list_ref = ray.put(teacher_parameters_list)
+    teacher_models_name_list_ref = ray.put(teacher_models_name_list)
     student_parameters_ref = ray.put(student_parameters)
     config_ref = ray.put(config)
     future_distillation_res = distillation_multiple_parameters.remote(
         teacher_parameters_list_ref,
+        teacher_models_name_list_ref,
         student_parameters_ref,
         config_ref,
     )

@@ -1,5 +1,5 @@
 import concurrent.futures
-from logging import DEBUG, INFO, WARNING
+from logging import DEBUG, INFO, WARNING, ERROR
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
 
 import ray
@@ -193,7 +193,8 @@ class RayFlowewrClusterDMLFogProxy(RayFlowerFogProxy):
         client_cluster_fn: Callable[[str], ClientClusterProxy],
         client_fn: Callable[[str], Client],
         strategy: Optional[Strategy] = None,
-        client_init_parameters: Optional[Parameters] = None,
+        client_init_parameters_dict: Dict[str, Parameters] = {},
+        client_models_name_dict: Dict[str, str] = {},
     ):
         super(RayFlowewrClusterDMLFogProxy, self).__init__(
             fid=fid,
@@ -202,9 +203,13 @@ class RayFlowewrClusterDMLFogProxy(RayFlowerFogProxy):
             client_fn=client_fn,
             strategy=strategy,
         )
+        self.client_models_name_dict: Dict[str, str] = {
+            str(cid): client_models_name_dict[str(cid)]
+            for cid in self.cids
+        }
         # クライアントパラメータの初期化はClientClusterProxyで行うため一旦コメントアウト
         self.client_parameters_dict: Dict[str, Parameters] = {
-            str(cid): client_init_parameters for cid in self.cids
+            str(cid): client_init_parameters_dict[self.client_models_name_dict[str(cid)]] for cid in self.cids
         }
         #クラスタモデルのパラメータ管理
         self.cluster_parameters_dict: Dict[str, Parameters] = {}
@@ -252,9 +257,10 @@ class RayFlowewrClusterDMLFogProxy(RayFlowerFogProxy):
         )
 
         # List[Tuple[ClientProxy, FitIns]]
-        clients_list_instructions = self.strategy.configure_fit(
+        clients_list_instructions = self.strategy.configure_fit( # clientごとにmodel_namesとparametersを出しわける
             server_round=server_round,
             client_parameters_dict=self.client_parameters_dict,
+            client_models_name_dict=self.client_models_name_dict,
             config=ins.config,
             client_manager=self._client_manager,
         )
@@ -374,7 +380,8 @@ class RayFlowewrClusterDMLFogProxy(RayFlowerFogProxy):
         # Evaluate configuration
         server_round: int = int(ins.config["server_round"])
         evaluate_config = {
-            "client_model_name": self.config["client_model_name"],
+            # "client_model_name": self.config["client_model_name"],
+            "server_model_name": self.config["server_model_name"],
             "dataset_name": self.config["dataset_name"],
             "target_name": self.config["target_name"],
             "fid": self.fid,
@@ -393,6 +400,7 @@ class RayFlowewrClusterDMLFogProxy(RayFlowerFogProxy):
         client_instructions = self.strategy.configure_evaluate(
             server_round=server_round,
             client_parameters_dict=self.client_parameters_dict,
+            client_models_name_dict=self.client_models_name_dict,
             config=evaluate_config,
             client_manager=self._client_manager,
         )
