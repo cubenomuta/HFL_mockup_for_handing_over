@@ -5,7 +5,6 @@ from models.metric_learning import get_arcface_resnet18
 from models.resnet import resnet18 
 from models.tinycnn import tinyCNN
 from models.tinycnn1 import tinyCNN_1conv
-from models.tinycnn2 import tinyCNN_2conv
 
 from typing import Tuple
 
@@ -14,8 +13,6 @@ def load_model(name: str, input_spec: Tuple[int, int, int], out_dims: int = 10, 
         return tinyCNN(input_spec=input_spec, out_dims=out_dims)
     elif name == "tinyCNN_1conv":
         return tinyCNN_1conv(input_spec=input_spec, out_dims=out_dims)
-    elif name == "tinyCNN_2conv":
-        return tinyCNN_2conv(input_spec=input_spec, out_dims=out_dims) 
     elif name == "ResNet18":
         return resnet18(input_spec=input_spec, num_classes=out_dims)
     elif name == "GNResNet18":
