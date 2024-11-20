@@ -44,7 +44,7 @@ class RayClientProxy(FlowerRayClientProxy):
         return fit_res
 
 
-@ray.remote
+@ray.remote(num_gpus=0.3)
 def launch_and_fit(
     client_fn: ClientFn, cid: str, fit_ins: common.FitIns
 ) -> common.FitRes:
