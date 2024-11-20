@@ -302,6 +302,29 @@ def resnet18(
         )
     return model
 
+def resnet8(
+    input_spec: Tuple[int, int, int],
+    num_classes: int,
+    norm_layer: Optional[Callable[..., nn.Module]] = None,
+    **kwargs: Any,
+) -> Union[ResNet, ResNetLR]:
+    if input_spec[1] >= 224:
+        model = ResNet(
+            BasicBlock,
+            [1, 1, 1, 1],
+            num_classes=num_classes,
+            norm_layer=norm_layer,
+            **kwargs,
+        )
+    else:
+        model = ResNetLR(
+            BasicBlock,
+            [1, 1, 1, 1],
+            num_classes=num_classes,
+            norm_layer=norm_layer,
+            **kwargs,
+        )
+    return model
 
 def get_layer(model, name):
     layer = model
