@@ -128,7 +128,7 @@ def evaluate_parameters(
         batch_size=batch_size,
         shuffle=False,
     )
-    device = torch.device("cuda: 0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     result = test(net=net, testloader=testloader, device=device)
     result["num_examples"] = len(testset)
@@ -172,7 +172,7 @@ def evaluate_parameters_by_client_data(
         batch_size=batch_size,
         shuffle=False,
     )
-    device = torch.device("cuda: 0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     result = test(net=net, testloader=testloader, device=device)
     result["num_examples"] = len(testset)

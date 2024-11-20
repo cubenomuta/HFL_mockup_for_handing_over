@@ -512,13 +512,13 @@ def distillation_from_clients(
     teacher_models_name_list_ref = ray.put(teacher_models_name_list)
     student_parameters_ref = ray.put(student_parameters)
     config_ref = ray.put(config)
-    if config["kd_from_clients"] == "normal": 
-        future_distillation_res = distillation_multiple_parameters.remote(
-            teacher_parameters_list_ref,
-            teacher_models_name_list_ref,
-            student_parameters_ref,
-            config_ref,
-        )
+    # if config["kd_from_clients"] == "normal": 
+    future_distillation_res = distillation_multiple_parameters.remote(
+        teacher_parameters_list_ref,
+        teacher_models_name_list_ref,
+        student_parameters_ref,
+        config_ref,
+    )
     # elif config["kd_from_clients"] == "by_consensus":
     #     future_distillation_res = distillation_multiple_parameters_by_consensus.remote(
     #         teacher_parameters_list_ref,
@@ -531,8 +531,8 @@ def distillation_from_clients(
     #         student_parameters_ref,
     #         config_ref,
     #     )
-    else:
-        raise ValueError("Invalid knowledge distillation method.")
+    # else:
+    #     raise ValueError("Invalid knowledge distillation method.")
     
     try:
         res = ray.get(future_distillation_res, timeout=None)
