@@ -6,6 +6,7 @@ from dataset_app import (
     CentralizedCelebaAndUsbcamVerification,
     CentralizedCelebaVerification,
     CIFAR10_truncated,
+    CIFAR10_cluster_truncated,
     CIFAR100_truncated,
     FashionMNIST_client_truncated, #追加
     FashionMNIST_truncated,
@@ -198,9 +199,10 @@ def load_federated_dataset( # クラスタ用
                 ),
             ]
         )
-        dataset = CIFAR10_truncated(
+        dataset = CIFAR10_cluster_truncated(
             root=DATA_ROOT,
-            id=id,
+            fid=fid,
+            clsid=clsid,
             train=train,
             target=target,
             attribute=attribute,
