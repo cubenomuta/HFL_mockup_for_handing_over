@@ -13,12 +13,12 @@ fi
 strategy="F2MKDC"
 server_model="tinyCNN"
 # client_model="tinyCNN"
-client_models="tinyCNN,tinyCNN_1conv" # csv形式
-dataset="OrganAMNIST"
-target="noniid-label2_part-noniid_0.2"
+client_models="tinyCNN,MobileNetV2" # csv形式
+dataset="CIFAR10"
+target="iid_noniid-dir0.1_linkage"
 num_rounds=300
-num_fogs=5
-num_clients=100
+num_fogs=3
+num_clients=50
 fraction_fit=1
 
 # fit configuration
