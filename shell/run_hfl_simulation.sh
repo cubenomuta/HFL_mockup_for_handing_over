@@ -10,14 +10,14 @@ done < ${CUDA_VISIBLE_DEVICES_FILE}
 fi
 
 # fl configuration
-strategy="F2MKD"
+strategy="FedFog"
 server_model="tinyCNN"
 client_model="tinyCNN"
-dataset="OrganAMNIST"
-target="noniid-label2_part-noniid_0.2"
+dataset="CIFAR10"
+target="iid_noniid-dir0.1_linkage"
 num_rounds=300
-num_fogs=5
-num_clients=100
+num_fogs=3
+num_clients=50
 fraction_fit=1
 
 # fit configuration
