@@ -79,7 +79,7 @@ def loss_kd_multiple(outputs, labels, teacher_outputs_list, alpha):
     return loss
 
 
-@ray.remote(num_gpus=0.5)
+@ray.remote
 def distillation_parameters(
     teacher_parameters: Parameters,
     student_parameters: Parameters,
@@ -149,7 +149,7 @@ def distillation_parameters(
     return ndarrays_to_parameters(student_net.get_weights())
 
 
-@ray.remote(num_gpus=0.3)
+@ray.remote
 def distillation_multiple_parameters(
     teacher_parameters_list: List[Parameters],
     teacher_models_name_list: List[str],
