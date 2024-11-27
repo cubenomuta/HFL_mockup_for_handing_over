@@ -13,11 +13,11 @@ fi
 strategy="FedFog"
 server_model="tinyCNN"
 client_model="tinyCNN"
-dataset="CIFAR10"
-target="iid_noniid-dir0.1_linkage"
+dataset="NIH_CXR"
+target="iid_iid"
 num_rounds=300
 num_fogs=3
-num_clients=50
+num_clients=25
 fraction_fit=1
 
 # fit configuration
@@ -33,7 +33,7 @@ if [ ! -e "${exp_dir}" ]; then
     mkdir -p "${exp_dir}/metrics/"
 fi
 
-ray start --head --min-worker-port 20000 --max-worker-port 29999 --num-cpus 5
+ray start --head --min-worker-port 20000 --max-worker-port 29999 --num-cpus 5 --num-gpus 1
 sleep 1 
 
 python ./local/hfl_simulation.py \
