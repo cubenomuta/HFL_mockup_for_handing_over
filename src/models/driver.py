@@ -1,6 +1,6 @@
 import sys
 from typing import Any, Dict
-from logging import DEBUG, INFO
+from logging import DEBUG, INFO, ERROR
 from flwr.common.logger import log
 
 import ray
@@ -74,28 +74,65 @@ def train(
     # net.to("cpu")
 
 
+# def test(
+#     net: Net, testloader: DataLoader, steps: int = None, device: str = "cpu"
+# ) -> Dict[str, Scalar]:
+#     net.to(device)
+#     criterion = torch.nn.CrossEntropyLoss()
+#     correct, total, steps, loss = 0, 0, 0, 0.0
+#     net.eval()
+#     with torch.no_grad():
+#         for images, labels in testloader:
+#             images, labels = images.to(device), labels.to(device)
+#             outputs = net(images)
+#             loss += float(criterion(outputs, labels).item())
+#             _, predicted = torch.max(outputs.data, 1)
+#             total += labels.size(0)
+#             correct += (predicted == labels).sum().item()
+#             steps += 1
+#     loss /= steps
+#     acc = correct / total
+#     return {"loss": loss, "acc": acc}
+
 def test(
     net: Net, testloader: DataLoader, steps: int = None, device: str = "cpu"
 ) -> Dict[str, Scalar]:
+
     net.to(device)
     criterion = torch.nn.CrossEntropyLoss()
     correct, total, steps, loss = 0, 0, 0, 0.0
     net.eval()
     with torch.no_grad():
-        for images, labels in testloader:
-            images, labels = images.to(device), labels.to(device)
-            outputs = net(images)
-            loss += float(criterion(outputs, labels).item())
-            _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
+        for batch_idx, (images, labels) in enumerate(testloader, start=1):
+            try:
+                images, labels = images.to(device), labels.to(device)
+                outputs = net(images)
+                batch_loss = criterion(outputs, labels).item()
+                loss += batch_loss
+
+                # 正解数を計算
+                _, predicted = torch.max(outputs.data, 1)
+                batch_correct = (predicted == labels).sum().item()
+                total += labels.size(0)
+                correct += batch_correct
+
+            except Exception as e:
+                log(ERROR, f"Error processing batch {batch_idx}: {e}")
+                raise
+
             steps += 1
-    loss /= steps
-    acc = correct / total
+
+    try:
+        loss /= steps
+        acc = correct / total
+    except ZeroDivisionError as e:
+        log(ERROR, f"Division by zero when calculating loss/accuracy: {e}")
+        loss, acc = float('inf'), 0.0
+
     return {"loss": loss, "acc": acc}
 
 
-@ray.remote
+@ray.remote(num_gpus=0.1)
 def evaluate_parameters(
     parameters: Parameters,
     config: Dict[str, Any],
@@ -125,16 +162,16 @@ def evaluate_parameters(
     # num_workers = int(ray.get_runtime_context().get_assigned_resources()["CPU"])
     testloader = DataLoader(
         dataset=testset,
-        batch_size=batch_size,
+        batch_size=1000,
         shuffle=False,
     )
-    device = torch.device("cuda: 0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     result = test(net=net, testloader=testloader, device=device)
     result["num_examples"] = len(testset)
     return result
 
-@ray.remote
+@ray.remote(num_gpus=0.1)
 def evaluate_parameters_by_client_data(
     parameters: Parameters,
     config: Dict[str, Any],
@@ -172,13 +209,13 @@ def evaluate_parameters_by_client_data(
         batch_size=batch_size,
         shuffle=False,
     )
-    device = torch.device("cuda: 0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     result = test(net=net, testloader=testloader, device=device)
     result["num_examples"] = len(testset)
     return result
 
-@ray.remote
+@ray.remote(num_gpus=0.1)
 def evaluate_parameters_by_before_shuffle_fog_data(
     parameters: Parameters,
     config: Dict[str, Any],

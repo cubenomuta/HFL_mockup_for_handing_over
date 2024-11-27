@@ -7,11 +7,13 @@ from dataset_app import (
     CentralizedCelebaVerification,
     CIFAR10_truncated,
     CIFAR100_truncated,
+    NIH_CXR_truncated,
     FashionMNIST_truncated,
     OrganAMNIST_truncated,
     FederatedCelebaVerification,
     FederatedUsbcamVerification,
     MNIST_truncated,
+    NIH_CXR,
 )
 from flwr.common import Scalar
 from torch.utils.data import Dataset, random_split
@@ -105,6 +107,18 @@ def load_centralized_dataset(
         dataset = CIFAR100(
             root=root, train=train, transform=transform, download=download
         )
+    elif dataset_name == "NIH_CXR":
+        transform = transforms.Compose(
+            [
+                transforms.Resize((256, 256)),
+                transforms.ToTensor()
+            ]
+        )
+        root = DATA_ROOT / "NIH_CXR" / "raw"
+        dataset = NIH_CXR(
+            centralized=True, train=train, transform=transform
+        )
+
     elif dataset_name == "CelebA":
         assert target is not None
         if target == "mix_usbcam":
@@ -222,6 +236,22 @@ def load_federated_dataset(
             transform=transform,
             download=download,
         )
+    elif dataset_name == "NIH_CXR":
+        transform = transforms.Compose(
+            [
+                transforms.Resize((256, 256)),  # 必要に応じて解像度を調整
+                transforms.ToTensor()
+            ]
+        )
+        dataset = NIH_CXR_truncated(
+            root=DATA_ROOT,
+            id=id,
+            train=train,
+            target=target,
+            attribute=attribute,
+            transform=transform,
+            download=download,
+        )
     elif dataset_name == "CelebA":
         assert target is not None
         dataset = FederatedCelebaVerification(id=id, train=train, target=target)
@@ -245,6 +275,9 @@ def configure_dataset(dataset_name: str, target: str = None) -> Dict[str, Scalar
     elif dataset_name == "CIFAR10":
         input_spec = (3, 32, 32)
         out_dims = 10
+    elif dataset_name == "NIH_CXR":
+        input_spec = (3, 32, 32) # 1 or 3
+        out_dims = 20
     elif (dataset_name == "CelebA") or (dataset_name == "usbcam"):
         input_spec = (3, 112, 112)
         if (target == "small") or (target == "mix_usbcam"):

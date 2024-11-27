@@ -572,7 +572,8 @@ def evaluate_client_parameters(
     ins.config["cid"] = client.cid
     parameters_ref = ray.put(ins.parameters)
     config_ref = ray.put(ins.config)
-    if client_partition == "iid": # フォグのtestデータで評価
+    if client_partition == "iid":
+    # if client_partition == "iid" or client_partition == "noniid-dir0.1": # フォグのtestデータで評価する場合
         # log(
         #     INFO,
         #     "evaluate_parameters.remote() is called",
