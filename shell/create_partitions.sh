@@ -3,11 +3,12 @@
 . ./shell/path.sh
 
 # FL system configuration
-num_fogs=10
+num_fogs=5
 num_clients=100
 
 # dataset configuration
-dataset="FashionMNIST"
+# dataset="CIFAR10"
+dataset="NIH_CXR"
 fog_partitions=$1 # "noniid-label2,1", "iid"
 client_partitions=$2 # "noniid-label2,1", "iid"
 # target=$3
