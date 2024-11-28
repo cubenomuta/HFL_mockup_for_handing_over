@@ -15,6 +15,11 @@ from dataset_app.common import (
     write_json,
     record_net_data_stats,
 )
+from dataset_app.common_for_nih_cxr import (
+    create_cxr_iid,
+    create_cxr_noniid,
+    create_cxr_noniid_dir
+)
 from flwr.common import NDArray
 
 parser = argparse.ArgumentParser("Create dataset partitions for fogs and clients")
@@ -32,7 +37,7 @@ parser.add_argument(
     "--dataset",
     type=str,
     required=True,
-    choices=["FashionMNIST", "MNIST", "CIFAR10", "CIFAR100"],
+    choices=["FashionMNIST", "MNIST", "CIFAR10", "CIFAR100", "NIH_CXR"],
     help="dataset name",
 )
 parser.add_argument("--save_dir", type=str, required=True, help="save directory")
@@ -55,6 +60,53 @@ def partitioning(
     list_train_labels_idxes: Optional[Dict[int, List[int]]] = None,
     list_test_labels_idxes: Optional[Dict[int, List[int]]] = None,
 ):
+    # for NIH_CXR
+    if args.dataset == "NIH_CXR":
+        print("args.dataset is NIH_CXR")
+        if partitions == "iid" or partitions == "part-noniid":
+            print("create_cxr_iid is called")
+            train_json_data = create_cxr_iid(
+                labels=train_labels,
+                num_parties=num_parties,
+                classes=classes,
+                list_labels_idxes=list_train_labels_idxes,
+                test=False,
+            )
+            test_json_data = create_cxr_iid(
+                labels=test_labels,
+                num_parties=num_parties,
+                classes=classes,
+                list_labels_idxes=list_test_labels_idxes,
+                test=True,
+            )
+        elif partitions >= "noniid-label1" and partitions <= "noniid-label9":
+            train_json_data, test_json_data = create_cxr_noniid(
+                train_labels=train_labels,
+                test_labels=test_labels,
+                num_parties=num_parties,
+                num_classes=int(partitions[-1]),
+                classes=classes,
+                list_train_labels_idxes=list_train_labels_idxes,
+                list_test_labels_idxes=list_test_labels_idxes,
+            )
+        elif partitions[:10] == "noniid-dir":
+            train_json_data, dirichlet_dist = create_cxr_noniid_dir(
+                labels=train_labels,
+                num_class=10,
+                dirichlet_dist=None,
+                num_parties=num_parties,
+                alpha=float(partitions[10:]),
+                seed=seed,
+                classes=classes,
+                list_labels_idxes=list_train_labels_idxes,
+            )
+            # test_json_data = create_consistent_test_data(
+            #     labels=test_labels,
+            #     dirichlet_dist=dirichlet_dist,
+            #     num_parties=num_parties,
+            # )
+        return train_json_data, test_json_data
+
     if partitions == "iid" or partitions == "part-noniid":
         train_json_data = create_iid(
             labels=train_labels,
@@ -173,7 +225,7 @@ def main(args):
     print(f"client_test_json_data: {client_test_json_data.keys()}")
     save_dir = Path(args.save_dir) / "client"
     write_json(client_train_json_data, save_dir=save_dir, file_name="train_data")
-    # write_json(client_test_json_data, save_dir=save_dir, file_name="test_data")
+    write_json(client_test_json_data, save_dir=save_dir, file_name="test_data")
     # print(f"{save_dir} create fog json file")
     save_dir = Path(args.save_dir) / "fog"
     write_json(fog_train_json_data, save_dir=save_dir, file_name="train_data")
