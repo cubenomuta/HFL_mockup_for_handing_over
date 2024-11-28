@@ -11,14 +11,14 @@ fi
 
 # fl configuration
 strategy="F2MKD"
-server_model="GNResNet18"
+server_model="tinyCNN"
 # client_model="tinyCNN"
-client_models="MobileNetV2,tinyCNN" # csv形式
-dataset="CIFAR10"
-target="iid_noniid-dir0.1_linkage"
+client_models="tinyCNN" # csv形式
+dataset="NIH_CXR"
+target="iid_iid"
 num_rounds=300
-num_fogs=3
-num_clients=50
+num_fogs=2
+num_clients=10
 fraction_fit=1
 
 # fit configuration
@@ -43,7 +43,7 @@ python ./local/create_client_model_name_dict.py \
 --save_dir ${data_dir} \
 --seed ${seed} 
 
-ray start --head --min-worker-port 20000 --max-worker-port 29999 --num-cpus 20 --num-gpus 8
+ray start --head --min-worker-port 20000 --max-worker-port 29999 --num-cpus 5 --num-gpus 1
 sleep 1 
 
 python ./local/hfl_simulation.py \

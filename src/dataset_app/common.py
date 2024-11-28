@@ -13,7 +13,7 @@ from torchvision.datasets import CIFAR10, CIFAR100, MNIST, FashionMNIST
 from torchvision.transforms import transforms
 from medmnist import OrganAMNIST
 
-from .federated_dataset import CIFAR10_truncated, CIFAR100_truncated
+from .federated_dataset import CIFAR10_truncated, CIFAR100_truncated, NIH_CXR_truncated
 
 DATA_ROOT = os.environ["DATA_ROOT"]
 
@@ -29,6 +29,8 @@ def load_numpy_dataset(dataset_name: str):
         x_train, y_train, x_test, y_test = load_cifar10()
     elif dataset_name == "CIFAR100":
         x_train, y_train, x_test, y_test = load_cifar100()
+    elif dataset_name == "NIH_CXR":
+        x_train, y_train, x_test, y_test = load_nih_cxr()
     else:
         raise NotImplementedError(f"{dataset_name} is no implemented")
     return x_train, y_train, x_test, y_test
@@ -127,6 +129,24 @@ def load_cifar100():
         root=DATA_ROOT, train=False, download=True, transform=transform
     )
 
+    X_train, y_train = traindata.data, traindata.target
+    X_test, y_test = testdata.data, testdata.target
+    return (X_train, y_train, X_test, y_test)
+
+def load_nih_cxr():
+    # 要修正
+    transform = transforms.Compose(
+        [
+            transforms.Resize((256, 256)),  # 必要に応じて解像度を調整
+            transforms.ToTensor()
+        ]
+    )
+    traindata = NIH_CXR_truncated(
+        root=DATA_ROOT,train=True, download=True, transform=transform
+    )
+    testdata = NIH_CXR_truncated(
+        root=DATA_ROOT, train=False, download=True, transform=transform
+    )
     X_train, y_train = traindata.data, traindata.target
     X_test, y_test = testdata.data, testdata.target
     return (X_train, y_train, X_test, y_test)
