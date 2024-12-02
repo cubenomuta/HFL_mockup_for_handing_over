@@ -8,7 +8,7 @@ from sklearn.metrics import silhouette_score, calinski_harabasz_score, davies_bo
 import numpy as np
 
 
-def find_best_threshold(kl_df, fog_id, save_dir):
+def find_best_threshold(kl_df, fid, save_dir):
     """最適なクラスタリング閾値を見つけ、評価指標を個別にプロットして保存"""
     # 距離行列を縮約形式に変換
     condensed_distance_matrix = squareform(kl_df.values)
@@ -16,6 +16,7 @@ def find_best_threshold(kl_df, fog_id, save_dir):
     silhouette_scores = []
     calinski_harabasz_scores = []
     davies_bouldin_scores = []
+    json_file="clustering_scores.json"
     
     # # 閾値でグリッド探索
     # threshold_values = np.linspace(0.5, 10, num=20)
@@ -69,6 +70,27 @@ def find_best_threshold(kl_df, fog_id, save_dir):
             calinski_harabasz_scores.append(None)
             davies_bouldin_scores.append(None)
 
+    # JSONデータを既存ファイルから読み込む（なければ空の辞書）
+    json_file_path = save_dir / json_file
+    if json_file_path.exists():
+        with open(json_file_path, "r") as f:
+            all_scores = json.load(f)
+    else:
+        all_scores = {}
+
+    # 現在のfidのスコアデータを保存
+    all_scores[fid] = {
+        "k_values": list(k_values),
+        "silhouette_scores": silhouette_scores,
+        "calinski_harabasz_scores": calinski_harabasz_scores,
+        "davies_bouldin_scores": davies_bouldin_scores
+    }
+
+    # 更新したスコアデータをJSONファイルに保存
+    with open(json_file_path, "w") as f:
+        json.dump(all_scores, f, indent=4)
+    print(f"クラスタリングスコアのデータをJSONファイルに保存しました: {json_file_path}")
+
     # シルエットスコアのプロット
     plt.figure(figsize=(10, 6))
     # plt.plot(threshold_values, silhouette_scores, marker='o', color='b')
@@ -76,9 +98,9 @@ def find_best_threshold(kl_df, fog_id, save_dir):
     # plt.xlabel("Threshold")
     plt.xlabel('Number of Clusters (k)')
     plt.ylabel("Silhouette Score")
-    plt.title(f"Silhouette Score vs. Threshold for Fog ID {fog_id}")
+    plt.title(f"Silhouette Score vs. Threshold for Fog ID {fid}")
     plt.grid(True)
-    silhouette_file = f"silhouette_score_vs_threshold_{fog_id}.svg"
+    silhouette_file = f"silhouette_score_vs_threshold_{fid}.svg"
     plt.savefig(Path(save_dir) / silhouette_file, format='svg')
     plt.close()
     print(f"シルエットスコアのグラフを保存しました: {silhouette_file}")
@@ -90,9 +112,9 @@ def find_best_threshold(kl_df, fog_id, save_dir):
     # plt.xlabel("Threshold")
     plt.xlabel('Number of Clusters (k)')
     plt.ylabel("Calinski-Harabasz Score")
-    plt.title(f"Calinski-Harabasz Score vs. Threshold for Fog ID {fog_id}")
+    plt.title(f"Calinski-Harabasz Score vs. Threshold for Fog ID {fid}")
     plt.grid(True)
-    calinski_file = f"calinski_harabasz_score_vs_threshold_{fog_id}.svg"
+    calinski_file = f"calinski_harabasz_score_vs_threshold_{fid}.svg"
     plt.savefig(Path(save_dir) / calinski_file, format='svg')
     plt.close()
     print(f"Calinski-Harabaszスコアのグラフを保存しました: {calinski_file}")
@@ -104,9 +126,9 @@ def find_best_threshold(kl_df, fog_id, save_dir):
     # plt.xlabel("Threshold")
     plt.xlabel('Number of Clusters (k)')
     plt.ylabel("Davies-Bouldin Score")
-    plt.title(f"Davies-Bouldin Score vs. Threshold for Fog ID {fog_id}")
+    plt.title(f"Davies-Bouldin Score vs. Threshold for Fog ID {fid}")
     plt.grid(True)
-    davies_file = f"davies_bouldin_score_vs_threshold_{fog_id}.svg"
+    davies_file = f"davies_bouldin_score_vs_threshold_{fid}.svg"
     plt.savefig(Path(save_dir) / davies_file, format='svg')
     plt.close()
     print(f"Davies-Bouldinスコアのグラフを保存しました: {davies_file}")
@@ -116,22 +138,22 @@ def find_best_threshold(kl_df, fog_id, save_dir):
     print(f"最適なクラスタ数: {best_k}, 最高シルエットスコア: {highest_silhouette}")
     return best_k
 
-def cluster_clients(fog_id, save_dir):
+def cluster_clients(fid, save_dir):
     """各フォグごとに最適な閾値を用いてクラスタリングを実行"""
-    input_file = Path(save_dir) / f"kl_divergence_matrix_fog_{fog_id}.csv"
+    input_file = Path(save_dir) / f"kl_divergence_matrix_fog_{fid}.csv"
     kl_df = pd.read_csv(input_file, index_col=0)
 
-    best_threshold = find_best_threshold(kl_df, fog_id, save_dir)
+    best_threshold = find_best_threshold(kl_df, fid, save_dir)
     
     condensed_distance_matrix = squareform(kl_df.values)
     linkage_matrix = linkage(condensed_distance_matrix, method='average')
     
     plt.figure(figsize=(10, 7))
     dendrogram(linkage_matrix, labels=kl_df.index)
-    plt.title(f"Fog {fog_id} - Client Clustering Dendrogram")
+    plt.title(f"Fog {fid} - Client Clustering Dendrogram")
     plt.xlabel("Client ID")
     plt.ylabel("Distance")
-    plt.savefig(Path(save_dir) / f"dendrogram_{fog_id}.svg")
+    plt.savefig(Path(save_dir) / f"dendrogram_{fid}.svg")
 
     clusters = fcluster(linkage_matrix, best_threshold, criterion='distance')
     
@@ -141,13 +163,13 @@ def cluster_clients(fog_id, save_dir):
             fog_results[cluster_id] = []
         fog_results[cluster_id].append(client_id)
 
-    return {str(fog_id): {str(cluster_id): clients for cluster_id, clients in fog_results.items()}}
+    return {str(fid): {str(cluster_id): clients for cluster_id, clients in fog_results.items()}}
 
-def run_hierarchical_clustering(save_dir: str, output_file: str):
+def run_hierarchical_clustering(save_dir: str, output_file: str, num_fogs: int, num_clients: int, num_classes: int):
     """全フォグのクラスタリング結果をまとめてJSONに保存"""
     clustered_data = {}
-    for i in range(5):
-        fog_result = cluster_clients(fog_id=i, save_dir=save_dir)
+    for i in range(num_fogs):
+        fog_result = cluster_clients(fid=i, save_dir=save_dir)
         clustered_data.update(fog_result)
 
     with open(output_file, 'w') as f:

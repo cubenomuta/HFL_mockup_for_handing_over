@@ -27,6 +27,7 @@ def determine_optimal_clusters(X, fid, save_dir, max_clusters=10):
     calinski_harabasz_scores = []
     davies_bouldin_scores = []
     k_values = range(2, max_clusters + 1)
+    json_file="clustering_scores.json"
     
     for k in k_values:
         kmeans = KMeans(n_clusters=k, random_state=0, n_init='auto')
@@ -36,6 +37,28 @@ def determine_optimal_clusters(X, fid, save_dir, max_clusters=10):
         silhouette_scores.append(silhouette_score(X, clusters))  # シルエットスコア
         calinski_harabasz_scores.append(calinski_harabasz_score(X, clusters))  # Calinski-Harabaszスコア
         davies_bouldin_scores.append(davies_bouldin_score(X, clusters))  # Davies-Bouldinスコア
+
+    # JSONデータを既存ファイルから読み込む（なければ空の辞書）
+    json_file_path = save_dir / json_file
+    if json_file_path.exists():
+        with open(json_file_path, "r") as f:
+            all_scores = json.load(f)
+    else:
+        all_scores = {}
+
+    # 現在のfidのスコアデータを保存
+    all_scores[fid] = {
+        "k_values": list(k_values),
+        "sse": sse,
+        "silhouette_scores": silhouette_scores,
+        "calinski_harabasz_scores": calinski_harabasz_scores,
+        "davies_bouldin_scores": davies_bouldin_scores
+    }
+
+    # 更新したスコアデータをJSONファイルに保存
+    with open(json_file_path, "w") as f:
+        json.dump(all_scores, f, indent=4)
+    print(f"クラスタリングスコアのデータをJSONファイルに保存しました: {json_file_path}")
     
     # エルボー法プロット
     plt.figure()
@@ -80,14 +103,18 @@ def determine_optimal_clusters(X, fid, save_dir, max_clusters=10):
     # エルボーポイントの特定
     kneedle = KneeLocator(k_values, sse, curve='convex', direction='decreasing')
     elbow_k = kneedle.elbow
-    print(f"エルボー法で選択されたクラスタ数: {elbow_k}")
-
-    # エルボー法で選択されたポイントの前後のクラスタ数を候補にする
-    candidate_k = [elbow_k - 1, elbow_k, elbow_k + 1]
-    candidate_k = [k for k in candidate_k if k in k_values]
-
-    # 候補の中でシルエットスコアが最大のものを選択(index -2でアクセスできる)
-    best_k = max(candidate_k, key=lambda k: silhouette_scores[k - 2])
+    # エルボーポイントが見つからない場合の対処
+    if elbow_k is None:
+        print("警告: エルボーポイントが見つかりませんでした。シルエットスコアに基づいてクラスタ数を選択します。")
+        # シルエットスコアの最大値を持つkを選択
+        best_k = k_values[np.argmax(silhouette_scores)]
+    else:
+        print(f"エルボー法で選択されたクラスタ数: {elbow_k}")
+        # エルボーポイントの前後のクラスタ数を候補にする
+        candidate_k = [elbow_k - 1, elbow_k, elbow_k + 1]
+        candidate_k = [k for k in candidate_k if k in k_values]
+        # 候補の中でシルエットスコアが最大のものを選択
+        best_k = max(candidate_k, key=lambda k: silhouette_scores[k - 2])
     print(f"最終的に選択されたクラスタ数: {best_k}")
 
     return best_k

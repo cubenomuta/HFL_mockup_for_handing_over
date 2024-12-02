@@ -27,14 +27,14 @@ def save_json_file(data: dict, file_path: str) -> None:
         json.dump(data, f, default=convert) 
 
 
-def save_kl_divergence(save_dir: str):
+def save_kl_divergence(save_dir: str, num_fogs: int, num_clients: int, num_classes: int):
     # 入力ファイルと出力ディレクトリのパス
     file_dir = Path(save_dir) / "client_train_data_stats.json"
     client_stats = load_json_file(file_dir)
 
     # クラスIDの範囲
-    class_ids = range(10)
-    fog_size = 100
+    class_ids = range(num_classes)
+    fog_size = num_clients
 
     # クライアントごとの確率分布を100個単位で処理
     for fog_start in range(0, len(client_stats), fog_size):

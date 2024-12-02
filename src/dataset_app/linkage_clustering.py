@@ -22,6 +22,7 @@ def determine_optimal_clusters(X, fid, save_dir, max_clusters=10):
     calinski_harabasz_scores = []
     davies_bouldin_scores = []
     k_values = range(2, max_clusters + 1)
+    json_file="clustering_scores.json"
     
     # 階層型クラスタリングのリンク生成
     linkage_matrix = linkage(X, method='average')
@@ -40,6 +41,27 @@ def determine_optimal_clusters(X, fid, save_dir, max_clusters=10):
             silhouette_scores.append(None)
             calinski_harabasz_scores.append(None)
             davies_bouldin_scores.append(None)
+
+    # JSONデータを既存ファイルから読み込む（なければ空の辞書）
+    json_file_path = save_dir / json_file
+    if json_file_path.exists():
+        with open(json_file_path, "r") as f:
+            all_scores = json.load(f)
+    else:
+        all_scores = {}
+
+    # 現在のfidのスコアデータを保存
+    all_scores[fid] = {
+        "k_values": list(k_values),
+        "silhouette_scores": silhouette_scores,
+        "calinski_harabasz_scores": calinski_harabasz_scores,
+        "davies_bouldin_scores": davies_bouldin_scores
+    }
+
+    # 更新したスコアデータをJSONファイルに保存
+    with open(json_file_path, "w") as f:
+        json.dump(all_scores, f, indent=4)
+    print(f"クラスタリングスコアのデータをJSONファイルに保存しました: {json_file_path}")
     
     # シルエットスコアプロット
     plt.figure()
@@ -69,12 +91,23 @@ def determine_optimal_clusters(X, fid, save_dir, max_clusters=10):
     print(f"Davies-Bouldinスコアをプロットしました{davies_bouldin_scores}")
     
     # 最適クラスタ数をシルエットスコアの最大値から決定
-    best_k = k_values[np.argmax(silhouette_scores)]
+    print(f"k_values: {k_values}")
+    print(f"silhouette_scores: {silhouette_scores}")
+    # 有効なスコアのみを取得
+    valid_indices = [i for i, score in enumerate(silhouette_scores) if score is not None]
+    valid_scores = [silhouette_scores[i] for i in valid_indices]
+    valid_k_values = [k_values[i] for i in valid_indices]
+
+    # 有効なスコアが存在する場合、最適な k を選択
+    if valid_scores:
+        best_k = valid_k_values[np.argmax(valid_scores)]
+    else:
+        raise ValueError("No valid silhouette scores to determine the optimal clusters.")
     print(f"最適なクラスタ数（シルエット法）: {best_k}")
 
     return best_k
 
-def hierarchical_clustering(data: dict, save_dir, num_fogs: int, num_clients: int, num_classes: int, step: int = 100) -> dict:
+def hierarchical_clustering(data: dict, save_dir, num_fogs: int, num_clients: int, num_classes: int) -> dict:
     """各フォグサーバ範囲で最適なクラスタ数を決定し、階層型クラスタリングを実行"""
     step = num_clients
     clustered_data = {}

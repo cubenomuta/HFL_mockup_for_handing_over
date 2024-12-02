@@ -22,6 +22,11 @@ from dataset_app.common_for_mmnist import (
     create_mmnist_noniid,
     create_mmnist_noniid_dir,
 )
+from dataset_app.common_for_nih_cxr import (
+    create_cxr_iid,
+    create_cxr_noniid,
+    create_cxr_noniid_dir
+)
 from flwr.common import NDArray
 from dataset_app.kmeans_clustering import run_kmeans_clustering
 from dataset_app.hierarchical_clustering import run_hierarchical_clustering
@@ -47,7 +52,7 @@ parser.add_argument(
     "--dataset",
     type=str,
     required=True,
-    choices=["OrganAMNIST", "FashionMNIST", "MNIST", "CIFAR10", "CIFAR100"],
+    choices=["OrganAMNIST", "FashionMNIST", "MNIST", "CIFAR10", "CIFAR100", "NIH_CXR"],
     help="dataset name",
 )
 parser.add_argument("--save_dir", type=str, required=True, help="save directory")
@@ -76,6 +81,53 @@ def partitioning(
     list_train_labels_idxes: Optional[Dict[int, List[int]]] = None,
     list_test_labels_idxes: Optional[Dict[int, List[int]]] = None,
 ):
+    # for NIH_CXR
+    if args.dataset == "NIH_CXR":
+        print("args.dataset is NIH_CXR")
+        if partitions == "iid" or partitions == "part-noniid":
+            print("create_cxr_iid is called")
+            train_json_data = create_cxr_iid(
+                labels=train_labels,
+                num_parties=num_parties,
+                classes=classes,
+                list_labels_idxes=list_train_labels_idxes,
+                test=False,
+            )
+            test_json_data = create_cxr_iid(
+                labels=test_labels,
+                num_parties=num_parties,
+                classes=classes,
+                list_labels_idxes=list_test_labels_idxes,
+                test=True,
+            )
+        elif partitions >= "noniid-label1" and partitions <= "noniid-label9":
+            train_json_data, test_json_data = create_cxr_noniid(
+                train_labels=train_labels,
+                test_labels=test_labels,
+                num_parties=num_parties,
+                num_classes=int(partitions[-1]),
+                classes=classes,
+                list_train_labels_idxes=list_train_labels_idxes,
+                list_test_labels_idxes=list_test_labels_idxes,
+            )
+        elif partitions[:10] == "noniid-dir":
+            train_json_data, dirichlet_dist = create_cxr_noniid_dir(
+                labels=train_labels,
+                num_class=10,
+                dirichlet_dist=None,
+                num_parties=num_parties,
+                alpha=float(partitions[10:]),
+                seed=seed,
+                classes=classes,
+                list_labels_idxes=list_train_labels_idxes,
+            )
+            # test_json_data = create_consistent_test_data(
+            #     labels=test_labels,
+            #     dirichlet_dist=dirichlet_dist,
+            #     num_parties=num_parties,
+            # )
+        return train_json_data, test_json_data
+    
     if args.dataset == "OrganAMNIST": # クラスによってサンプル数が異なるため分岐
         print("OrganAMNIST dataset") # DEBUG
         if partitions == "iid" or partitions == "part-noniid":
@@ -192,6 +244,8 @@ def main(args):
         num_classes = 100
     if dataset == "OrganAMNIST":
         num_classes = 11
+    if dataset == "NIH_CXR":
+        num_classes = 20
     else:
         num_classes = 10
 
@@ -239,10 +293,10 @@ def main(args):
             list_test_labels_idxes=list_test_labels_idxes,
         )
         updatedkey_train_json_data = {
-            cid + fid * 100: val for cid, val in train_json_data.items()
+            cid + fid * num_clients: val for cid, val in train_json_data.items()
         }
         updatedkey_test_json_data = {
-            cid + fid * 100: val for cid, val in test_json_data.items()
+            cid + fid * num_clients: val for cid, val in test_json_data.items()
         }
         client_train_json_data.update(updatedkey_train_json_data)
         client_test_json_data.update(updatedkey_test_json_data)
@@ -386,8 +440,8 @@ def main(args):
         run_dbscan_clustering(save_dir=save_dir, output_file=output_file_path, num_fogs=num_fogs, num_clients=num_clients, num_classes=num_classes)
     elif cluster_alg == "hierarchical": # kl_divergenceを計算してから実行
         print("run hierarchical clustering")
-        save_kl_divergence(save_dir=save_dir)
-        run_hierarchical_clustering(save_dir=save_dir, output_file=output_file_path)
+        save_kl_divergence(save_dir=save_dir, num_fogs=num_fogs, num_clients=num_clients, num_classes=num_classes)
+        run_hierarchical_clustering(save_dir=save_dir, output_file=output_file_path, num_fogs=num_fogs, num_clients=num_clients, num_classes=num_classes)
     else:
         raise ValueError(f"Invalid clustering algorithm: {cluster_alg}")
 
