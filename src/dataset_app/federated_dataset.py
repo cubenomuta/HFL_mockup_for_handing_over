@@ -3,6 +3,11 @@ from pathlib import Path
 from flwr.common.logger import log
 from logging import INFO, DEBUG
 
+import torch
+from .nihcxr import NIH_CXR
+from logging import DEBUG, INFO, ERROR
+from flwr.common.logger import log
+
 import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset
@@ -353,6 +358,150 @@ class OrganAMNIST_client_truncated(Dataset):
     def __len__(self):
         return len(self.data)
 
+class NIH_CXR_truncated(Dataset):
+    def __init__(
+        self,
+        root: str,
+        id: str = None,
+        train: bool = True,
+        target: str = None,
+        attribute: str = None,
+        transform=None,
+        target_transform=None,
+        download=False,
+    ):
+        self.id = id
+        self.train = train
+        self.transform = transform
+        self.target_transform = target_transform
+        self.download = download
+        self.data_root = Path(root) / "NIH_CXR"
+        self.json_path = None
+        if target is not None and attribute is not None:
+            self.json_root = (
+                Path(root) / "NIH_CXR" / "partitions" / target / attribute
+            )
+            if self.train:
+                self.json_path = self.json_root / "train_data.json"
+            else:
+                self.json_path = self.json_root / "test_data.json"
+        self.data, self.target = self.__build_truncated_dataset__()
+    def __build_truncated_dataset__(self):
+        nih_cxr_dataobj = NIH_CXR(
+            centralized=False,
+            train=self.train,
+            transform=self.transform,
+            target_transform=self.target_transform,
+        )
+        data = np.array(nih_cxr_dataobj.data)
+        target = np.array(nih_cxr_dataobj.targets)
+        if self.json_path is not None:
+            with open(self.json_path, "r") as f:
+                json_data = json.load(f)
+            data_idx = json_data[self.id]
+            data = data[data_idx]
+            target = target[data_idx]
+        return data, target
+    def __getitem__(self, index):
+        """
+        指定されたインデックスのデータ（画像とラベル）を取得
+        """
+        try:
+            # ファイルパスとラベルを取得
+            img_path = self.data[index]
+            label = self.target[index]
+            # ファイルパスを画像として開く
+            image = Image.open(img_path).convert("RGB")
+            label = torch.tensor(label, dtype=torch.long)
+            # transformを適用
+            if self.transform is not None:
+                image = self.transform(image)
+            if self.target_transform is not None:
+                label = self.target_transform(label)
+            return image, label
+        except Exception as e:
+            log(ERROR, f"Error in __getitem__ at index {index}: {e}")
+            raise
+    def __len__(self):
+        """
+        データセットのサイズを返す
+        """
+        return len(self.data)
+    
+class NIH_CXR_cluster_truncated(Dataset):
+    def __init__(
+        self,
+        root: str,
+        fid: str = None,
+        clsid: str = None,
+        train: bool = True,
+        target: str = None,
+        attribute: str = None,
+        transform=None,
+        target_transform=None,
+        download=False,
+    ):
+        self.fid = fid
+        self.clsid = clsid
+        self.train = train
+        self.transform = transform
+        self.target_transform = target_transform
+        self.download = download
+        self.data_root = Path(root) / "NIH_CXR"
+        self.json_path = None
+        if target is not None and attribute is not None:
+            self.json_root = (
+                Path(root) / "NIH_CXR" / "partitions" / target / attribute
+            )
+            if self.train:
+                self.json_path = self.json_root / "train_data.json"
+            else:
+                self.json_path = self.json_root / "test_data.json"
+        self.data, self.target = self.__build_truncated_dataset__()
+
+    def __build_truncated_dataset__(self):
+        nih_cxr_dataobj = NIH_CXR(
+            centralized=False,
+            train=self.train,
+            transform=self.transform,
+            target_transform=self.target_transform,
+        )
+        data = np.array(nih_cxr_dataobj.data)
+        target = np.array(nih_cxr_dataobj.targets)
+        if self.json_path is not None:
+            with open(self.json_path, "r") as f:
+                json_data = json.load(f)
+            fog_data = json_data[self.fid]
+            data_idx = fog_data[self.clsid]
+            data = data[data_idx]
+            target = target[data_idx]
+        return data, target
+
+    def __getitem__(self, index):
+        """
+        指定されたインデックスのデータ（画像とラベル）を取得
+        """
+        try:
+            # ファイルパスとラベルを取得
+            img_path = self.data[index]
+            label = self.target[index]
+            # ファイルパスを画像として開く
+            image = Image.open(img_path).convert("RGB")
+            label = torch.tensor(label, dtype=torch.long)
+            # transformを適用
+            if self.transform is not None:
+                image = self.transform(image)
+            if self.target_transform is not None:
+                label = self.target_transform(label)
+            return image, label
+        except Exception as e:
+            log(ERROR, f"Error in __getitem__ at index {index}: {e}")
+            raise
+    def __len__(self):
+        """
+        データセットのサイズを返す
+        """
+        return len(self.data)
 
 class MNIST_truncated(Dataset):
     """

@@ -3,25 +3,25 @@
 . ./shell/path.sh
 
 # FL system configuration
-num_fogs=5
-num_clients=100
+num_fogs=2
+num_clients=5
 
 # dataset configuration
-dataset="OrganAMNIST"
+dataset="NIH_CXR"
 fog_partitions=$1 # "noniid-label2,1", "iid"
 client_partitions=$2 # "noniid-label2,1", "iid"
-client_shuffle_ratio=0.2
+client_shuffle_ratio=0.5
 seed=1234
-cluster_alg="kmeans"
+# cluster_alg="kmeans"
 # cluster_alg="hierarchical"
-# cluster_alg="linkage"
+cluster_alg="linkage"
 # cluster_alg="dbscan"
 
 
 if [[ "$client_partitions" == *"noniid-dir"* ]]; then
     save_dir="./data/${dataset}/partitions/${fog_partitions}_${client_partitions}_${cluster_alg}"
 elif [[ "$client_partitions" == *"part-noniid"* ]]; then
-    save_dir="./data/${dataset}/partitions/${fog_partitions}_${client_partitions}_${client_shuffle_ratio}"
+    save_dir="./data/${dataset}/partitions/${fog_partitions}_${client_partitions}_${cluster_alg}_${client_shuffle_ratio}"
 else
     save_dir="./data/${dataset}/partitions/${fog_partitions}_${client_partitions}"
 fi

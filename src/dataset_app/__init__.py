@@ -6,6 +6,8 @@ from .federated_dataset import (
     CIFAR10_truncated,
     CIFAR10_cluster_truncated,
     CIFAR100_truncated,
+    NIH_CXR_truncated,
+    NIH_CXR_cluster_truncated,
     FashionMNIST_truncated,
     FashionMNIST_client_truncated,
     OrganAMNIST_truncated,
@@ -15,11 +17,17 @@ from .federated_dataset import (
     MNIST_truncated,
 )
 
+from .nihcxr import (
+    NIH_CXR
+)
+
 __all__ = [
     "CentralizedCelebaVerification",
     "CentralizedCelebaAndUsbcamVerification",
     "CIFAR10_truncated",
     "CIFAR10_cluster_truncated",
+    "NIH_CXR_truncated",
+    "NIH_CXR_cluster_truncated",
     "CIFAR100_truncated",
     "FashionMNIST_truncated",
     "FashionMNIST_client_truncated",
@@ -28,4 +36,5 @@ __all__ = [
     "MNIST_truncated",
     "FederatedCelebaVerification",
     "FederatedUsbcamVerification",
+    "NIH_CXR",
 ]

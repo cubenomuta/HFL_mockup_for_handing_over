@@ -146,7 +146,7 @@ def hierarchical_clustering(data: dict, save_dir, num_fogs: int, num_clients: in
         # 同じクラスタID（clsid）のクライアントをまとめる
         clustered_data[fid] = {}
         for k, cluster in zip(keys, clusters):
-            cluster = int(cluster)  # クラスタIDをint型に変換
+            cluster = int(cluster) - 1  # クラスタIDをint型に変換
             if cluster not in clustered_data[fid]:
                 clustered_data[fid][cluster] = []  # クラスタIDごとにリストを作成
             clustered_data[fid][cluster].append(int(k))  # クライアントIDをint型で追加
