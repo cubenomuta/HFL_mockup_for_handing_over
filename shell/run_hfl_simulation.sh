@@ -13,16 +13,16 @@ fi
 strategy="F2MKDC"
 server_model="tinyCNN"
 # client_model="tinyCNN"
-client_models="tinyCNN,MobileNetV2" # csv形式
-dataset="CIFAR10"
-target="iid_noniid-dir0.1_linkage"
+client_models="tinyCNN" # csv形式
+dataset="NIH_CXR"
+target="noniid-label2_part-noniid_linkage_0.5"
 num_rounds=300
-num_fogs=3
-num_clients=50
+num_fogs=2
+num_clients=5
 fraction_fit=1
 
 # fit configuration
-yaml_path="./conf/${dataset}/${strategy}_${server_model}_tinyCNN/fit_config.yaml"
+yaml_path="./conf/${dataset}/${strategy}_${server_model}_${client_models}/fit_config.yaml"
 seed=1234
 echo "Running ${yaml_path}"
 
