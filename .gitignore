@@ -17,3 +17,4 @@ setup_pi.sh
 *.csv
 *__pycache__*
 *DS_Store*
+*.tar.gz

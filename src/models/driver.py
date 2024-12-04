@@ -132,7 +132,8 @@ def test(
     return {"loss": loss, "acc": acc}
 
 
-@ray.remote(num_gpus=0.1)
+# @ray.remote(num_gpus=0.1)
+@ray.remote
 def evaluate_parameters(
     parameters: Parameters,
     config: Dict[str, Any],
@@ -171,7 +172,8 @@ def evaluate_parameters(
     result["num_examples"] = len(testset)
     return result
 
-@ray.remote(num_gpus=0.1)
+# @ray.remote(num_gpus=0.1)
+@ray.remote
 def evaluate_parameters_by_client_data(
     parameters: Parameters,
     config: Dict[str, Any],
@@ -215,7 +217,8 @@ def evaluate_parameters_by_client_data(
     result["num_examples"] = len(testset)
     return result
 
-@ray.remote(num_gpus=0.1)
+# @ray.remote(num_gpus=0.1)
+@ray.remote
 def evaluate_parameters_by_before_shuffle_fog_data(
     parameters: Parameters,
     config: Dict[str, Any],

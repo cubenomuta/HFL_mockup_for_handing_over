@@ -1,6 +1,8 @@
 import concurrent.futures
 from logging import DEBUG, INFO
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
+from tqdm import tqdm
+import time
 
 import ray
 from flwr.client import Client
@@ -23,7 +25,7 @@ from flwr.common import (
 from flwr.common.logger import log
 from flwr.server import ClientManager, Server
 from flwr.server.client_proxy import ClientProxy
-from flwr.server.server import fit_clients
+# from flwr.server.server import fit_clients
 from flwr.server.strategy import Strategy
 from hfl_server_app.fog_proxy import FogProxy
 from models.driver import evaluate_parameters, evaluate_parameters_by_client_data, evaluate_parameters_by_before_shuffle_fog_data
@@ -113,7 +115,7 @@ class RayFlowerFogProxy(Server, FogProxy):
         )
         self.set_max_workers(max_workers=len(client_instructions))
 
-        results, failures = fit_clients(
+        results, failures, client_time_result = fit_clients(
             client_instructions=client_instructions,
             max_workers=self.max_workers,
             timeout=None,
@@ -126,11 +128,14 @@ class RayFlowerFogProxy(Server, FogProxy):
             len(failures),
         )
 
+        fog_comp_start_time = time.perf_counter()
         # # Aggregate training results
         aggregated_result: Tuple[
             Optional[Parameters],
             Dict[str, Scalar],
         ] = self.strategy.aggregate_fit(server_round, results, failures)
+        fog_comp_end_time = time.perf_counter()
+        fog_comp_time = fog_comp_end_time - fog_comp_start_time
 
         parameters_prime, metrics_aggregated = aggregated_result
 
@@ -139,7 +144,7 @@ class RayFlowerFogProxy(Server, FogProxy):
             parameters=parameters_prime,
             num_examples=int(ins.config["batch_size"]),
             metrics=metrics_aggregated,
-        )
+        ), client_time_result, fog_comp_time
 
     def evaluate(self, ins: EvaluateIns, timeout: Optional[float]) -> EvaluateRes:
         # evaluate configuration
@@ -438,6 +443,81 @@ def distillation_from_server(
         )
     return results, failures
 
+def fit_clients(
+    client_instructions: List[Tuple[ClientProxy, FitIns]],
+    # client_fittime_dict: Dict[str, List[float]],
+    max_workers: Optional[int],
+    timeout: Optional[float],
+) -> FitResultsAndFailures:
+    """Refine parameters concurrently on all selected clients."""
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        submitted_fs = {
+            executor.submit(fit_client, client_proxy, ins, timeout)
+            for client_proxy, ins in client_instructions
+        }
+        finished_fs, _ = concurrent.futures.wait(
+            fs=submitted_fs,
+            timeout=None,  # Handled in the respective communication stack
+        )
+
+    # Gather results
+    results: List[Tuple[ClientProxy, FitRes]] = []
+    failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]] = []
+    client_time_results:  List[Tuple[str, float]] = []
+    for future in finished_fs:
+        _handle_finished_future_after_fit(
+            future=future, results=results, failures=failures, client_time_results=client_time_results,
+        )
+    return results, failures, client_time_results
+
+def fit_client(
+    client: ClientProxy, ins: FitIns, timeout: Optional[float]
+) -> Tuple[ClientProxy, FitRes]:
+    """Refine parameters on a single client."""
+    fit_res = client.fit(ins, timeout=timeout)
+    return client, fit_res
+
+
+def _handle_finished_future_after_fit(
+    future: concurrent.futures.Future,  # type: ignore
+    results: List[Tuple[ClientProxy, FitRes]],
+    failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
+    # client_fittime_dict: Dict[str, List[float]] = {},
+    client_time_results: List[Tuple[str, float]],
+) -> None:
+    """Convert finished future into either a result or a failure."""
+
+    # Check if there was an exception
+    failure = future.exception()
+    if failure is not None:
+        failures.append(failure)
+        return
+
+    # Successfully received a result from a client
+    pre_result: Tuple[ClientProxy, Tuple[FitRes, float]] = future.result()
+    client_proxy, (pre_res, client_fit_time) = pre_result
+    result: Tuple[ClientProxy, FitRes] = (client_proxy, pre_res)
+    client_time_result: Tuple[str, float] = (client_proxy.cid, client_fit_time)
+
+    # Check result status code
+    if pre_res.status.code == Code.OK and client_fit_time is not None:
+        results.append(result)
+        if client_fit_time:
+            log(
+                INFO,
+                "cid=%s: client_fit_time=%s",
+                client_proxy.cid,
+                client_fit_time
+            )
+            # if client_proxy.cid not in client_fittime_dict:
+            #     client_fittime_dict[client_proxy.cid] = []
+
+            # client_fittime_dict[client_proxy.cid].append(client_fit_time)
+            client_time_results.append(client_time_result)
+        return
+
+    # Not successful, client returned a result where the status code is not OK
+    failures.append(result)
 
 def _handle_finished_future_after_distillation(
     future: concurrent.futures.Future,
