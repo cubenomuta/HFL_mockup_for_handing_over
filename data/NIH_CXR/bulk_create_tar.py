@@ -3,8 +3,8 @@ import tarfile
 from math import ceil
 
 # 画像データのディレクトリ
-input_dir = "train_data"
-output_dir = "output_tars"
+input_dir = "test_data"
+output_dir = "test_tars"
 num_parts = 10
 
 # 出力ディレクトリが存在しない場合は作成
@@ -19,7 +19,7 @@ files_per_part = ceil(len(all_files) / num_parts)
 # ファイルを分割して tar.gz に圧縮
 for i in range(num_parts):
     part_files = all_files[i * files_per_part:(i + 1) * files_per_part]
-    tar_filename = os.path.join(output_dir, f"train_data_part_{i + 1}.tar.gz")
+    tar_filename = os.path.join(output_dir, f"test_data_part_{i + 1}.tar.gz")
     
     with tarfile.open(tar_filename, "w:gz") as tar:
         for file in part_files:
