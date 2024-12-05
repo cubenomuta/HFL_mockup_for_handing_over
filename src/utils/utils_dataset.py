@@ -115,7 +115,7 @@ def load_centralized_dataset(
     elif dataset_name == "NIH_CXR":
         transform = transforms.Compose(
             [
-                transforms.Resize((256, 256)),
+                transforms.Resize((64, 64)),
                 transforms.ToTensor()
             ]
         )
@@ -245,7 +245,7 @@ def load_federated_dataset( # クラスタ用
     elif dataset_name == "NIH_CXR":
         transform = transforms.Compose(
             [
-                transforms.Resize((256, 256)),  # 必要に応じて解像度を調整
+                transforms.Resize((64, 64)),  # 必要に応じて解像度を調整
                 transforms.ToTensor()
             ]
         )
@@ -378,7 +378,7 @@ def load_federated_client_dataset( # クライアント用
     elif dataset_name == "NIH_CXR":
         transform = transforms.Compose(
             [
-                transforms.Resize((256, 256)),  # 必要に応じて解像度を調整
+                transforms.Resize((64, 64)),  # 必要に応じて解像度を調整
                 transforms.ToTensor()
             ]
         )
@@ -414,8 +414,8 @@ def configure_dataset(dataset_name: str, target: str = None) -> Dict[str, Scalar
         input_spec = (3, 32, 32)
         out_dims = 10
     elif dataset_name == "NIH_CXR":
-        input_spec = (3, 32, 32)
-        out_dims = 20
+        input_spec = (3, 64, 64)
+        out_dims = 10
     elif (dataset_name == "CelebA") or (dataset_name == "usbcam"):
         input_spec = (3, 112, 112)
         if (target == "small") or (target == "mix_usbcam"):

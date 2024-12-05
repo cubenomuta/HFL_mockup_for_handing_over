@@ -245,7 +245,7 @@ def main(args):
     if dataset == "OrganAMNIST":
         num_classes = 11
     if dataset == "NIH_CXR":
-        num_classes = 20
+        num_classes = 10
     else:
         num_classes = 10
 

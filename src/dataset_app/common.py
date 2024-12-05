@@ -140,7 +140,7 @@ def load_nih_cxr():
     # 要修正
     transform = transforms.Compose(
         [
-            transforms.Resize((256, 256)),  # 必要に応じて解像度を調整
+            transforms.Resize((64, 64)),  # 必要に応じて解像度を調整
             transforms.ToTensor()
         ]
     )

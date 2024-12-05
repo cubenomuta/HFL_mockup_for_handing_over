@@ -3,8 +3,8 @@
 . ./shell/path.sh
 
 # FL system configuration
-num_fogs=2
-num_clients=5
+num_fogs=3
+num_clients=25
 
 # dataset configuration
 dataset="NIH_CXR"
