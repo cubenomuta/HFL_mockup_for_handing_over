@@ -107,7 +107,7 @@ def determine_optimal_clusters(X, fid, save_dir, max_clusters=10):
 
     return best_k
 
-def hierarchical_clustering(data: dict, save_dir, num_fogs: int, num_clients: int, num_classes: int) -> dict:
+def hierarchical_clustering(data: dict, save_dir, num_fogs: int, num_clients: int, num_classes: int, cluster_num: int = None) -> dict:
     """各フォグサーバ範囲で最適なクラスタ数を決定し、階層型クラスタリングを実行"""
     step = num_clients
     clustered_data = {}
@@ -136,6 +136,10 @@ def hierarchical_clustering(data: dict, save_dir, num_fogs: int, num_clients: in
 
         # 最適なクラスタ数を決定
         optimal_clusters = determine_optimal_clusters(X, fid, save_dir)
+        if cluster_num:
+            optimal_clusters = cluster_num
+
+        print(f"cluster_num={cluster_num, }optimal_clusters={optimal_clusters}")
         
         # 階層型クラスタリングのリンク生成
         linkage_matrix = linkage(X, method='average')
@@ -159,7 +163,7 @@ def hierarchical_clustering(data: dict, save_dir, num_fogs: int, num_clients: in
 
     return sorted_clustered_data
 
-def run_linkage_clustering(save_dir: str, output_file: str, num_fogs: int, num_clients: int, num_classes: int): 
+def run_linkage_clustering(save_dir: str, output_file: str, num_fogs: int, num_clients: int, num_classes: int, cluster_num: int = None): 
     """クラスタリングプロセスを実行する関数"""
 
     input_file = Path(save_dir) / "client_train_data_stats.json"
@@ -167,7 +171,7 @@ def run_linkage_clustering(save_dir: str, output_file: str, num_fogs: int, num_c
     print("元のデータ:", list(data.items())[:5])  # 最初の5件を表示
     
     # クラスタリングを実行
-    clustered_data = hierarchical_clustering(data, save_dir, num_fogs, num_clients, num_classes)
+    clustered_data = hierarchical_clustering(data, save_dir, num_fogs, num_clients, num_classes, cluster_num)
     
     # クラスタリング結果を保存
     save_json_file(clustered_data, output_file)

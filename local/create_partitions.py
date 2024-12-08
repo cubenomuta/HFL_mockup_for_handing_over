@@ -64,6 +64,12 @@ parser.add_argument(
     choices=["kmeans", "hierarchical", "linkage", "dbscan"],
     help="clustering algorithm",
 )
+parser.add_argument(
+    "--cluster_num",
+    type=int,
+    required=True,
+    help="Number of clusters for clustering algorithm",
+)
 
 def set_seed(seed: int):
     random.seed(seed)
@@ -240,6 +246,8 @@ def main(args):
     client_shuffle_ratio = args.client_shuffle_ratio
     seed = args.seed
     cluster_alg = args.cluster_alg
+    if args.cluster_num:
+        cluster_num = args.cluster_num
     if dataset == "CIFAR100":
         num_classes = 100
     if dataset == "OrganAMNIST":
@@ -431,17 +439,17 @@ def main(args):
 
     if cluster_alg == "kmeans":
         print("run kmeans clustering")
-        run_kmeans_clustering(save_dir=save_dir, output_file=output_file_path, num_fogs=num_fogs, num_clients=num_clients, num_classes=num_classes)
+        run_kmeans_clustering(save_dir=save_dir, output_file=output_file_path, num_fogs=num_fogs, num_clients=num_clients, num_classes=num_classes, cluster_num=cluster_num)
     elif cluster_alg == "linkage":
         print ("run linkage clustering")
-        run_linkage_clustering(save_dir=save_dir, output_file=output_file_path, num_fogs=num_fogs, num_clients=num_clients, num_classes=num_classes)
+        run_linkage_clustering(save_dir=save_dir, output_file=output_file_path, num_fogs=num_fogs, num_clients=num_clients, num_classes=num_classes, cluster_num=cluster_num)
     elif cluster_alg == "dbscan":
         print("run dbscan clustering")
-        run_dbscan_clustering(save_dir=save_dir, output_file=output_file_path, num_fogs=num_fogs, num_clients=num_clients, num_classes=num_classes)
+        run_dbscan_clustering(save_dir=save_dir, output_file=output_file_path, num_fogs=num_fogs, num_clients=num_clients, num_classes=num_classes, cluster_num=cluster_num)
     elif cluster_alg == "hierarchical": # kl_divergenceを計算してから実行
         print("run hierarchical clustering")
         save_kl_divergence(save_dir=save_dir, num_fogs=num_fogs, num_clients=num_clients, num_classes=num_classes)
-        run_hierarchical_clustering(save_dir=save_dir, output_file=output_file_path, num_fogs=num_fogs, num_clients=num_clients, num_classes=num_classes)
+        run_hierarchical_clustering(save_dir=save_dir, output_file=output_file_path, num_fogs=num_fogs, num_clients=num_clients, num_classes=num_classes, cluster_num=cluster_num)
     else:
         raise ValueError(f"Invalid clustering algorithm: {cluster_alg}")
 

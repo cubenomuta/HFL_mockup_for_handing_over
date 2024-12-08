@@ -119,7 +119,7 @@ def determine_optimal_clusters(X, fid, save_dir, max_clusters=10):
 
     return best_k
 
-def kmeans_clustering(data: dict, save_dir, num_fogs: int, num_clients: int, num_classes: int, step: int = 100) -> dict:
+def kmeans_clustering(data: dict, save_dir, num_fogs: int, num_clients: int, num_classes: int, cluster_num: int = None, step: int = 100) -> dict:
     """各フォグサーバ範囲で最適なクラスタ数を決定し、クラスタリングを実行"""
     step = num_clients
     clustered_data = {}
@@ -146,8 +146,12 @@ def kmeans_clustering(data: dict, save_dir, num_fogs: int, num_clients: int, num
         # NumPy配列に変換
         X = np.array([np.array(row) for row in X], dtype=float)
 
+        optimal_clusters = determine_optimal_clusters(X, fid, save_dir) # json出力
         # 最適なクラスタ数を決定
-        optimal_clusters = determine_optimal_clusters(X, fid, save_dir)
+        if cluster_num:
+            optimal_clusters = cluster_num
+
+        print(f"cluster_num={cluster_num, }optimal_clusters={optimal_clusters}")
         
         # KMeansによるクラスタリング
         kmeans = KMeans(n_clusters=optimal_clusters, random_state=0, n_init='auto')
@@ -169,7 +173,7 @@ def kmeans_clustering(data: dict, save_dir, num_fogs: int, num_clients: int, num
 
     return sorted_clustered_data
 
-def run_kmeans_clustering(save_dir: str, output_file: str, num_fogs: int, num_clients: int, num_classes: int): 
+def run_kmeans_clustering(save_dir: str, output_file: str, num_fogs: int, num_clients: int, num_classes: int, cluster_num: int = None): 
     """クラスタリングプロセスを実行する関数"""
 
     input_file = Path(save_dir) / "client_train_data_stats.json"
@@ -177,7 +181,7 @@ def run_kmeans_clustering(save_dir: str, output_file: str, num_fogs: int, num_cl
     print("元のデータ:", list(data.items())[:5])  # 最初の5件を表示
     
     # クラスタリングを実行
-    clustered_data = kmeans_clustering(data, save_dir, num_fogs, num_clients, num_classes)
+    clustered_data = kmeans_clustering(data, save_dir, num_fogs, num_clients, num_classes, cluster_num)
     
     # クラスタリング結果を保存
     save_json_file(clustered_data, output_file)

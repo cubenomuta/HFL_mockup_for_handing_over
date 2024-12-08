@@ -138,12 +138,15 @@ def find_best_threshold(kl_df, fid, save_dir):
     print(f"最適なクラスタ数: {best_k}, 最高シルエットスコア: {highest_silhouette}")
     return best_k
 
-def cluster_clients(fid, save_dir):
+def cluster_clients(fid, save_dir, cluster_num: int = None):
     """各フォグごとに最適な閾値を用いてクラスタリングを実行"""
     input_file = Path(save_dir) / f"kl_divergence_matrix_fog_{fid}.csv"
     kl_df = pd.read_csv(input_file, index_col=0)
 
     best_threshold = find_best_threshold(kl_df, fid, save_dir)
+    # if cluster_num:
+        # best_threshold = cluster_num
+    print(f"best_threshold={best_threshold}, cluster_num={cluster_num}")
     
     condensed_distance_matrix = squareform(kl_df.values)
     linkage_matrix = linkage(condensed_distance_matrix, method='average')
@@ -165,11 +168,11 @@ def cluster_clients(fid, save_dir):
 
     return {str(fid): {str(cluster_id): clients for cluster_id, clients in fog_results.items()}}
 
-def run_hierarchical_clustering(save_dir: str, output_file: str, num_fogs: int, num_clients: int, num_classes: int):
+def run_hierarchical_clustering(save_dir: str, output_file: str, num_fogs: int, num_clients: int, num_classes: int, cluster_num: int = None):
     """全フォグのクラスタリング結果をまとめてJSONに保存"""
     clustered_data = {}
     for i in range(num_fogs):
-        fog_result = cluster_clients(fid=i, save_dir=save_dir)
+        fog_result = cluster_clients(fid=i, save_dir=save_dir, cluster_num=cluster_num)
         clustered_data.update(fog_result)
 
     with open(output_file, 'w') as f:
