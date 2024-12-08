@@ -38,7 +38,7 @@ for target in "${targets[@]}"; do
     fi
     echo "create dir to ${exp_dir}"
 
-    ray start --head --min-worker-port 20000 --max-worker-port 29999 --num-cpus 20 --num-gpus 8
+    ray start --head --min-worker-port 20000 --max-worker-port 29999 --num-cpus 5
     sleep 1 
 
     python ./local/hfl_simulation.py \
@@ -62,4 +62,4 @@ for target in "${targets[@]}"; do
     wait
     ray stop -f
     rm -rf /tmp/ray
-done5
+done

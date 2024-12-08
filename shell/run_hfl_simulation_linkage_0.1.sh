@@ -62,3 +62,4 @@ for target in "${targets[@]}"; do
     wait
     ray stop -f
     rm -rf /tmp/raylinkage
+done
