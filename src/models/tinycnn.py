@@ -7,8 +7,6 @@ import torch.nn.functional as F
 
 from .base_model import Net
 
-from logging import WARNING, INFO
-from flwr.common.logger import log
 
 class tinyCNN(Net):
     def __init__(
@@ -27,16 +25,17 @@ class tinyCNN(Net):
         self.conv1 = nn.Conv2d(self.in_channels, 6, self.conv_kernel_size)
         self.pool = nn.MaxPool2d(self.pool_kernel_size, self.pool_kernel_stride)
         self.conv2 = nn.Conv2d(6, 16, self.conv_kernel_size)
-        self.global_pool = nn.AdaptiveAvgPool2d((1, 1))  # グローバルプーリングを追加
-        self.fc1 = nn.Linear(16, 120)
+        for _ in range(2):
+            self._conv_update()
+            self._pool_update()
+        self.fc1 = nn.Linear(16 * self.width * self.height, 120)
         self.fc2 = nn.Linear(120, 84)
         self.fc3 = nn.Linear(84, out_dims)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.pool(F.relu(self.conv1(x)))
         x = self.pool(F.relu(self.conv2(x)))
-        x = self.global_pool(x)
-        x = torch.flatten(x, start_dim=1)
+        x = x.view(-1, 16 * self.width * self.height)
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
