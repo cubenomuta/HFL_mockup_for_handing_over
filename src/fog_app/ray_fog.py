@@ -23,7 +23,7 @@ from flwr.common import (
 from flwr.common.logger import log
 from flwr.server import ClientManager, Server
 from flwr.server.client_proxy import ClientProxy
-from flwr.server.server import fit_clients
+# from flwr.server.server import fit_clients
 from flwr.server.strategy import Strategy
 from hfl_server_app.fog_proxy import FogProxy
 from models.driver import evaluate_parameters, evaluate_parameters_by_client_data, evaluate_parameters_by_before_shuffle_fog_data
@@ -271,7 +271,7 @@ class RayFlowerDMLFogProxy(RayFlowerFogProxy):
             "fid": self.fid,
         }
         distillation_from_server_config.update(ins.config)
-        results, failures = distillation_from_server(
+        results, failures, distillation_from_server_time_results = distillation_from_server(
             server_parameters=server_parameters,
             client_parameters_dict=self.client_parameters_dict,
             client_models_name_dict=self.client_models_name_dict,
@@ -309,7 +309,7 @@ class RayFlowerDMLFogProxy(RayFlowerFogProxy):
         )
         self.set_max_workers(max_workers=len(client_instructions))
 
-        results, failures = fit_clients(
+        results, failures, client_time = fit_clients(
             client_instructions=client_instructions,
             max_workers=self.max_workers,
             timeout=None,
@@ -336,7 +336,7 @@ class RayFlowerDMLFogProxy(RayFlowerFogProxy):
             "fid": self.fid,
         }
         distillation_from_clients_config.update(ins.config)
-        fog_parameters: Parameters = distillation_from_clients(
+        fog_parameters, distillation_from_clients_time = distillation_from_clients(
             teacher_parameters_list=[
                 client_parameters
                 for client_parameters in self.client_parameters_dict.values()
@@ -355,12 +355,19 @@ class RayFlowerDMLFogProxy(RayFlowerFogProxy):
                 self.fid,
             )
 
+        # フォグの計算時間の集計
+        # distillation_from_serverとdistillation_from_clientsの合計値
+        fog_comp_time = 0.0
+        for _, distillation_from_server_time in distillation_from_server_time_results:
+            fog_comp_time += distillation_from_server_time
+        fog_comp_time += distillation_from_clients_time
+
         return FitRes(
             status=Status(Code.OK, message="success fit"),
             parameters=fog_parameters,
             num_examples=int(ins.config["batch_size"]),
             metrics={},
-        )
+        ), client_time, fog_comp_time
 
     def evaluate(self, ins: EvaluateIns, timeout: Optional[float]) -> EvaluateRes:
         # Evaluate configuration
@@ -421,6 +428,72 @@ class RayFlowerDMLFogProxy(RayFlowerFogProxy):
             metrics=metrics_aggregated,
         )
 
+def fit_clients(
+    client_instructions: List[Tuple[ClientProxy, FitIns]],
+    max_workers: Optional[int],
+    timeout: Optional[float],
+) -> FitResultsAndFailures:
+    """Refine parameters concurrently on all selected clients."""
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        submitted_fs = {
+            executor.submit(fit_client, client_proxy, ins, timeout)
+            for client_proxy, ins in client_instructions
+        }
+        finished_fs, _ = concurrent.futures.wait(
+            fs=submitted_fs,
+            timeout=None,  # Handled in the respective communication stack
+        )
+    # Gather results
+    results: List[Tuple[ClientProxy, FitRes]] = []
+    failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]] = []
+    client_time_results:  List[Tuple[str, float]] = []
+    for future in finished_fs:
+        _handle_finished_future_after_fit(
+            future=future, results=results, failures=failures, client_time_results=client_time_results,
+        )
+
+    return results, failures, client_time_results
+
+def fit_client(
+    client: ClientProxy, ins: FitIns, timeout: Optional[float]
+) -> Tuple[ClientProxy, FitRes]:
+    """Refine parameters on a single client."""
+    fit_res = client.fit(ins, timeout=timeout)
+    return client, fit_res
+
+def _handle_finished_future_after_fit(
+    future: concurrent.futures.Future,  # type: ignore
+    results: List[Tuple[ClientProxy, FitRes]],
+    failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
+    client_time_results: List[Tuple[str, float]],
+) -> None:
+    """Convert finished future into either a result or a failure."""
+    # Check if there was an exception
+    failure = future.exception()
+    if failure is not None:
+        failures.append(failure)
+        return
+
+    # Successfully received a result from a client
+    pre_result: Tuple[ClientProxy, Tuple[FitRes, float]] = future.result()
+    client_proxy, (pre_res, client_fit_time) = pre_result
+    result: Tuple[ClientProxy, FitRes] = (client_proxy, pre_res)
+    client_time_result: Tuple[str, float] = (client_proxy.cid, client_fit_time)
+
+    # Check result status code
+    if pre_res.status.code == Code.OK and client_fit_time is not None:
+        results.append(result)
+        if client_fit_time:
+            log(
+                INFO,
+                "cid=%s: client_fit_time=%s",
+                client_proxy.cid,
+                client_fit_time
+            )
+            client_time_results.append(client_time_result)
+        return
+    # Not successful, client returned a result where the status code is not OK
+    failures.append(result)
 
 def distillation_from_server(
     server_parameters: Parameters,
@@ -444,19 +517,22 @@ def distillation_from_server(
     # Gather results
     results: List[Tuple[str, Parameters]] = []
     failures: List[Union[Tuple[str, Parameters], BaseException]] = []
+    time_results: List[Tuple[str, float]] = []
     for future in finished_fs:
         _handle_finished_future_after_distillation(
             future=future,
             results=results,
             failures=failures,
+            time_results=time_results,
         )
-    return results, failures
+    return results, failures, time_results
 
 
 def _handle_finished_future_after_distillation(
     future: concurrent.futures.Future,
     results: List[Tuple[str, Parameters]],
     failures: List[Union[Tuple[str, Parameters], BaseException]],
+    time_results: List[Tuple[str, float]],
 ) -> None:
     # Check if there was an exception
     failure = future.exception()
@@ -465,12 +541,16 @@ def _handle_finished_future_after_distillation(
         return
 
     # Successfully receieved a result from a client
-    result: Tuple[str, Parameters] = future.result()
-    _, res = result
+    # result: Tuple[str, Parameters] = future.result()
+    pre_result: Tuple[str, Parameters] = future.result()
+    cid, res, distillation_time = pre_result
+    result = (cid, res)
 
     # Check result type
     if type(res) == Parameters:
         results.append(result)
+        if distillation_time:
+            time_results.append((cid, distillation_time))
         return
 
     failures.append(result)
@@ -485,13 +565,13 @@ def distillation(
     teacher_parameters_ref = ray.put(teacher_parameters)
     student_parameters_ref = ray.put(student_parameters)
     config_ref = ray.put(config)
-    future_distillation_res = distillation_parameters.remote(
+    future_distillation_res = distillation_parameters.remote( # これでtime受け取れるか
         teacher_parameters_ref,
         student_parameters_ref,
         config_ref,
     )
     try:
-        res = ray.get(future_distillation_res, timeout=None)
+        res, distillation_time = ray.get(future_distillation_res, timeout=None)
     except Exception as ex:
         log(DEBUG, ex)
         raise ex
@@ -499,7 +579,7 @@ def distillation(
     ray.internal.free(student_parameters_ref)
     ray.internal.free(config_ref)
     ray.internal.free(future_distillation_res)
-    return cid, cast(Parameters, res)
+    return cid, cast(Parameters, res), distillation_time
 
 
 def distillation_from_clients(
@@ -543,7 +623,8 @@ def distillation_from_clients(
     ray.internal.free(student_parameters_ref)
     ray.internal.free(config_ref)
     ray.internal.free(future_distillation_res)
-    return cast(Parameters, res)
+    parameters_res, distillation_multiple_time = res
+    return cast(Parameters, parameters_res), distillation_multiple_time
 
 
 def evaluate_clients_parameters(

@@ -325,6 +325,9 @@ def main():
         ray_init_args=ray_config,
         keep_initialised=True,
     )
+    hfl_server.make_time_json(
+        save_dir=args.save_dir
+    )
 
     # Dump results
     # loss of global model

@@ -1,7 +1,9 @@
 import gc
 import sys
 from logging import DEBUG
-from typing import Callable, Dict, Optional, cast
+from typing import Callable, Dict, Optional, cast, Tuple
+from tqdm import tqdm
+import time
 
 import ray
 from flwr import common
@@ -22,7 +24,7 @@ class RayClientProxy(FlowerRayClientProxy):
         super().__init__(client_fn, cid, resources)
         # log(DEBUG, f"RayClientProxy.__init__ cid: {cid}")
 
-    def fit(self, ins: common.FitIns, timeout: Optional[float]) -> common.FitRes:
+    def fit(self, ins: common.FitIns, timeout: Optional[float]) -> Tuple[common.FitRes, float]:
         """Train model parameters on the locally held dataset."""
         client_fn_ref = ray.put(self.client_fn)
         cid_ref = ray.put(self.cid)
@@ -50,12 +52,15 @@ def launch_and_fit(
 ) -> common.FitRes:
     """Exectue fit remotely."""
     client: Client = _create_client(client_fn, cid, fit_ins)
+    start_time = time.perf_counter()
     res = maybe_call_fit(
         client=client,
         fit_ins=fit_ins,
     )
     del client
-    return res
+    end_time = time.perf_counter()
+    client_fit_time = end_time - start_time
+    return res, client_fit_time
 
 
 def _create_client(client_fn: ClientFn, cid: str, fit_ins: common.FitIns) -> Client:
