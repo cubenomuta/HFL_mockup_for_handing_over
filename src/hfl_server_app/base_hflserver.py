@@ -3,6 +3,10 @@ import timeit
 from logging import DEBUG, INFO
 from typing import Dict, List, Optional, Tuple, Union, cast
 
+from pathlib import Path
+import json
+import os
+
 from flwr.common import (
     Code,
     DisconnectRes,
@@ -60,6 +64,21 @@ class HFLServer:
         self.strategy: Strategy = strategy if strategy is not None else FedAvg()
         self.max_workers: Optional[int] = None
         self.save_dir: Optional[str] = save_dir
+        self.fogs_time_result: Dict[str, List[float]] = {}
+        self.clients_time_result: Dict[str, List[float]] = {}
+
+    def make_time_json(self, save_dir: str) -> None:
+        """"Make Fog & Client Time Json"""
+        if save_dir:
+            time_dir = Path(save_dir) / "time"
+            time_dir.mkdir(parents=True, exist_ok=True)
+            save_path = Path(save_dir) / "time" / "fog_train_time.json"
+            with open(save_path, "w") as f:
+                json.dump(self.fogs_time_result, f)
+            save_path = Path(save_dir) / "time" / "client_train_time.json"
+            with open(save_path, "w") as f:
+                json.dump(self.clients_time_result, f)
+        return
 
     def set_max_workers(self, max_workers: Optional[int]) -> None:
         """Set the max_workers used by ThreadPoolExecutor."""
@@ -256,11 +275,21 @@ class HFLServer:
         self.set_max_workers(len(fog_instructions))
 
         # Collect `fit` results from all fogs participating in this round
-        results, failures = fit_fogs(
+        results, failures, fog_time_results, client_time_results = fit_fogs(
             fog_instructions=fog_instructions,
             max_workers=self.max_workers,
             timeout=timeout,
         )
+
+        for fid, result in fog_time_results:
+            if fid not in self.fogs_time_result:
+                self.fogs_time_result[fid] = []
+            self.fogs_time_result[fid].append(result)
+        for cid, result in client_time_results:
+            if cid not in self.clients_time_result:
+                self.clients_time_result[cid] = []
+            self.clients_time_result[cid].append(result)
+
         log(
             DEBUG,
             "fit_round %s received %s results and %s failures",
@@ -372,18 +401,20 @@ def fit_fogs(
     # Gather results
     results: List[Tuple[ClientClusterProxy, FitRes]] = []
     failures: List[Union[Tuple[ClientClusterProxy, FitRes], BaseException]] = []
+    client_time_results: List[Tuple[str, float]] = []
+    fog_time_results: List[Tuple[str, float]] = []
     for future in finished_fs:
         _handle_finished_future_after_fit(
-            future=future, results=results, failures=failures
+            future=future, results=results, failures=failures, client_time_results=client_time_results, fog_time_results=fog_time_results
         )
-    return results, failures
+    return results, failures, fog_time_results, client_time_results
 
 
 def fit_fog(
     fog: FogProxy, ins: FitIns, timeout: Optional[float]
 ) -> ClusterFitResultsAndFailures:
     """Refine parameters on a single fog."""
-    results, failures = fog.fit(ins, timeout=timeout)
+    results, failures, fog_comp_time, client_time = fog.fit(ins, timeout=timeout)
     log(
         DEBUG,
         "fog fid: %s received %s results and %s failures",
@@ -391,13 +422,15 @@ def fit_fog(
         len(results),
         len(failures),
     )
-    return results, failures
+    return fog, results, failures, fog_comp_time, client_time
 
 
 def _handle_finished_future_after_fit(
     future: concurrent.futures.Future,  # type: ignore
     results: List[Tuple[ClientClusterProxy, FitRes]],
     failures: List[Union[Tuple[ClientClusterProxy, FitRes], BaseException]],
+    client_time_results: List[Tuple[str, float]],
+    fog_time_results: List[Tuple[str, float]],
 ) -> None:
     """Convert finished future into either a result or a failure."""
 
@@ -412,7 +445,7 @@ def _handle_finished_future_after_fit(
 
     # Successfully received a result from a fog
     # result: Tuple[FogProxy, FitRes] = future.result()
-    fog_result, fog_failures = future.result()
+    fog, fog_result, fog_failures, fog_comp_time, client_time = future.result()
 
     for result in fog_result:
         _, res = result
@@ -420,6 +453,11 @@ def _handle_finished_future_after_fit(
             results.append(result)
         else:
             failures.append(result)
+
+    if client_time:
+        client_time_results.extend((client_time))
+    if fog_comp_time:
+        fog_time_results.append((fog.fid, fog_comp_time))
     
     if len(fog_failures) > 0:
         for failure in fog_failures:

@@ -1,6 +1,7 @@
 import timeit
-from typing import Any, Dict, List
-
+from typing import Any, Dict, List, Tuple
+from tqdm import tqdm
+import time
 import ray
 import torch
 import torch.nn as nn
@@ -129,6 +130,7 @@ def distillation_parameters(
     teacher_net.to(device)
     teacher_net.eval()
     student_net.to(device)
+    start_time = time.perf_counter()
     student_net.train()
     for _ in range(epochs):
         for images, labels in trainloader:
@@ -146,8 +148,10 @@ def distillation_parameters(
             loss.backward()
             optimizer.step()
             break  # using only one minibatch
+    end_time = time.perf_counter()
+    distillation_time = end_time - start_time
 
-    return ndarrays_to_parameters(student_net.get_weights())
+    return ndarrays_to_parameters(student_net.get_weights()), distillation_time
 
 
 @ray.remote
@@ -202,6 +206,7 @@ def distillation_multiple_parameters(
     trainloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
 
     student_net.to(device)
+    start_time = time.perf_counter()
     student_net.train()
     for _ in range(epochs):
         for images, labels in trainloader:
@@ -222,5 +227,7 @@ def distillation_multiple_parameters(
             loss.backward()
             optimizer.step()
             break  # using only one minibatch
+    end_time = time.perf_counter()
+    distillatin_multiple_time = end_time - start_time
 
-    return ndarrays_to_parameters(student_net.get_weights())
+    return ndarrays_to_parameters(student_net.get_weights()), distillatin_multiple_time

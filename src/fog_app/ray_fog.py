@@ -294,6 +294,7 @@ class RayFlowewrClusterDMLFogProxy(RayFlowerFogProxy):
 
         results: List[Tuple[ClientClusterProxy, FitRes]] = []
         failures: List[Union[Tuple[ClientClusterProxy, FitRes], BaseException]] = []
+        fog_comp_time = 0.0
 
         for clsid, clients_instructions in clients_per_cluster_instructions.items():
             try:
@@ -304,7 +305,7 @@ class RayFlowewrClusterDMLFogProxy(RayFlowerFogProxy):
                 )
 
                 # 結果からクラスターと結果情報を取得
-                cluster, res, client_parameters_dict = pre_result
+                cluster, res, client_parameters_dict, client_time, cluster_comp_time = pre_result
 
                 result = (cluster, res)
 
@@ -322,6 +323,9 @@ class RayFlowewrClusterDMLFogProxy(RayFlowerFogProxy):
                     # ステータスコードがOKでない場合は失敗リストに追加
                     failures.append((cluster, res))
 
+                # フォグの学習時間の計測
+                fog_comp_time += cluster_comp_time
+
             except Exception as e:
                 # 例外発生時は失敗リストに追加
                 failures.append(e)
@@ -330,7 +334,7 @@ class RayFlowewrClusterDMLFogProxy(RayFlowerFogProxy):
         #     self._handle_finished_future_after_fit(
         #         future=future, results=results, failures=failures
         #     )
-        return results, failures
+        return results, failures, fog_comp_time, client_time
     
     def _handle_finished_future_after_fit(
         self,
@@ -373,8 +377,8 @@ class RayFlowewrClusterDMLFogProxy(RayFlowerFogProxy):
     ) -> Tuple[ClientClusterProxy, FitRes, Dict[str, Parameters]]:
         """Refine parameters on a single cluster."""
         cluster, ins = cluster_instructions
-        fit_res, client_parameters_dict = cluster.fit(ins=ins, client_instructions=clients_instructions, timeout=timeout)
-        return cluster, fit_res, client_parameters_dict
+        fit_res, client_parameters_dict, client_time, cluster_comp_time = cluster.fit(ins=ins, client_instructions=clients_instructions, timeout=timeout)
+        return cluster, fit_res, client_parameters_dict, client_time, cluster_comp_time
     
     def evaluate(self, ins: EvaluateIns, timeout: Optional[float]) -> Tuple[EvaluateRes, EvaluateRes]:
         # Evaluate configuration
