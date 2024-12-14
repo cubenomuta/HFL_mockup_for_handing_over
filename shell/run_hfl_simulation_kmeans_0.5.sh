@@ -14,7 +14,7 @@ strategy="F2MKDC"
 server_model="tinyCNN"
 # client_model="tinyCNN"
 client_models="tinyCNN" # csv形式
-dataset="CIFAR10"
+dataset="FashionMNIST"
 targets=("iid_noniid-dir0.5_kmeans_cluster_num=2" "iid_noniid-dir0.5_kmeans_cluster_num=5" "iid_noniid-dir0.5_kmeans_cluster_num=10")
 num_rounds=300
 num_fogs=3
@@ -38,7 +38,7 @@ for target in "${targets[@]}"; do
     fi
     echo "create dir to ${exp_dir}"
 
-    ray start --head --min-worker-port 20000 --max-worker-port 29999 --num-cpus 5
+    ray start --head --min-worker-port 20000 --max-worker-port 29999 --num-cpus 20 --num-gpus 8
     sleep 1 
 
     python ./local/hfl_simulation.py \

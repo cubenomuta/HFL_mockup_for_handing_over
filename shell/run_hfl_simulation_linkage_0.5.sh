@@ -14,7 +14,7 @@ strategy="F2MKDC"
 server_model="tinyCNN"
 # client_model="tinyCNN"
 client_models="tinyCNN" # csv形式
-dataset="CIFAR10"
+dataset="FashionMNIST"
 targets=("iid_noniid-dir0.5_linkage_cluster_num=2" "iid_noniid-dir0.5_linkage_cluster_num=5" "iid_noniid-dir0.5_linkage_cluster_num=10")
 num_rounds=300
 num_fogs=3
