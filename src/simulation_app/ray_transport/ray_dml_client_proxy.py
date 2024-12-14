@@ -1,6 +1,8 @@
 from logging import DEBUG
 from typing import Any, Callable, Dict, Optional, Tuple, cast
 
+from logging import DEBUG, INFO
+from flwr.common.logger import log
 import ray
 from flwr.client import Client, ClientLike, to_client
 from flwr.client.client import maybe_call_evaluate, maybe_call_fit
@@ -36,7 +38,7 @@ class RayDMLClientProxy(RayClientProxy):
         except Exception as ex:
             log(DEBUG, ex)
             raise ex
-        fit_res, parameters = cast(Tuple[FitRes, Parameters], res)
+        fit_res, parameters, client_train_time = cast(Tuple[FitRes, Parameters], res)
         del res
         self.parameters = parameters
         ray.internal.free(client_fn_ref)
@@ -44,7 +46,7 @@ class RayDMLClientProxy(RayClientProxy):
         ray.internal.free(ins_ref)
         ray.internal.free(parameters_ref)
         ray.internal.free(future_fit_res)
-        return fit_res
+        return fit_res, client_train_time
 
     def evaluate(self, ins: EvaluateIns, timeout: Optional[float]) -> EvaluateRes:
         client_fn_ref = ray.put(self.client_fn)

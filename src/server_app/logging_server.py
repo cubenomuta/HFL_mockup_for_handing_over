@@ -3,6 +3,10 @@ import os
 import timeit
 from logging import DEBUG, INFO
 from typing import Dict, List, Optional, Tuple, Union
+import time
+from pathlib import Path
+import json
+import os
 
 import torch
 from flwr.common import Code, FitIns, FitRes, Parameters, Scalar, parameters_to_ndarrays
@@ -11,7 +15,7 @@ from flwr.server import Server
 from flwr.server.client_manager import ClientManager
 from flwr.server.client_proxy import ClientProxy
 from flwr.server.history import History
-from flwr.server.server import fit_clients
+# from flwr.server.server import fit_clients
 from flwr.server.strategy import Strategy
 from models.base_model import Net
 
@@ -40,11 +44,29 @@ class LoggingServer(Server):
             client_manager=client_manager, strategy=strategy
         )
         self.save_model = save_model
+        self.server_time_result: Dict[str, List[float]] = {}
+        self.server_time_result[0] = []
+        self.clients_time_result: Dict[str, List[float]] = {}
         if self.save_model:
             assert net is not None
             assert save_dir is not None
             self.net = net
             self.save_dir = save_dir
+
+    def make_time_json(self, save_dir: str) -> None:
+        """"Make Fog & Client Time Json"""
+        if save_dir:
+            time_dir = Path(save_dir) / "time"
+            time_dir.mkdir(parents=True, exist_ok=True)
+
+            save_path = Path(save_dir) / "time" / "server_train_time.json"
+            with open(save_path, "w") as f:
+                json.dump(self.server_time_result, f)
+            save_path = Path(save_dir) / "time" / "client_train_time.json"
+            with open(save_path, "w") as f:
+                json.dump(self.clients_time_result, f)
+
+        return
 
     def fit(self, num_rounds: int, timeout: Optional[float]) -> History:
         history = CustomHistory()
@@ -70,6 +92,8 @@ class LoggingServer(Server):
                     parameters_prime,
                     timestamps_cen,
                     _,
+                    client_time_results,
+                    server_comp_time,
                 ) = res_fit  # fit_metrics_aggregated
                 if parameters_prime:
                     self.parameters = parameters_prime
@@ -102,6 +126,12 @@ class LoggingServer(Server):
                     history.add_metrics_distributed(
                         server_round=current_round, metrics=evaluate_metrics_fed
                     )
+            
+            self.server_time_result[0].append(server_comp_time)
+            for cid, result in client_time_results:
+                if cid not in self.clients_time_result:
+                    self.clients_time_result[cid] = []
+                self.clients_time_result[cid].append(result)
 
         if self.save_model:
             weights = parameters_to_ndarrays(self.parameters)
@@ -143,7 +173,7 @@ class LoggingServer(Server):
         self.set_max_workers(max_workers=len(client_instructions))
 
         # Collect `fit` results from all clients participating in this round
-        results, failures = fit_clients(
+        results, failures, client_time_results = fit_clients(
             client_instructions=client_instructions,
             max_workers=self.max_workers,
             timeout=timeout,
@@ -156,11 +186,86 @@ class LoggingServer(Server):
             len(failures),
         )
 
+        server_comp_start_time = time.perf_counter()
         # Aggregate training results
         aggregated_result: Tuple[
             Optional[Parameters],
             Dict[str, Scalar],
         ] = self.strategy.aggregate_fit(server_round, results, failures)
+        server_comp_end_time = time.perf_counter()
+        server_comp_time = server_comp_end_time - server_comp_start_time
 
         parameters_aggregated, metrics_aggregated = aggregated_result
-        return parameters_aggregated, metrics_aggregated, (results, failures)
+        return parameters_aggregated, metrics_aggregated, (results, failures), client_time_results, server_comp_time
+
+def fit_clients(
+    client_instructions: List[Tuple[ClientProxy, FitIns]],
+    max_workers: Optional[int],
+    timeout: Optional[float],
+) -> FitResultsAndFailures:
+    """Refine parameters concurrently on all selected clients."""
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        submitted_fs = {
+            executor.submit(fit_client, client_proxy, ins, timeout)
+            for client_proxy, ins in client_instructions
+        }
+        finished_fs, _ = concurrent.futures.wait(
+            fs=submitted_fs,
+            timeout=None,  # Handled in the respective communication stack
+        )
+
+    # Gather results
+    results: List[Tuple[ClientProxy, FitRes]] = []
+    failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]] = []
+    client_time_results:  List[Tuple[str, float]] = []
+    for future in finished_fs:
+        _handle_finished_future_after_fit(
+            future=future, results=results, failures=failures, client_time_results=client_time_results,
+        )
+    return results, failures, client_time_results
+
+def fit_client(
+    client: ClientProxy, ins: FitIns, timeout: Optional[float]
+) -> Tuple[ClientProxy, FitRes]:
+    """Refine parameters on a single client."""
+    fit_res = client.fit(ins, timeout=timeout)
+    return client, fit_res
+
+def _handle_finished_future_after_fit(
+    future: concurrent.futures.Future,  # type: ignore
+    results: List[Tuple[ClientProxy, FitRes]],
+    failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
+    # client_fittime_dict: Dict[str, List[float]] = {},
+    client_time_results: List[Tuple[str, float]],
+) -> None:
+    """Convert finished future into either a result or a failure."""
+    # Check if there was an exception
+    failure = future.exception()
+    if failure is not None:
+        failures.append(failure)
+        return
+
+    # Successfully received a result from a client
+    pre_result: Tuple[ClientProxy, Tuple[FitRes, float]] = future.result()
+    client_proxy, (pre_res, client_fit_time) = pre_result
+    result: Tuple[ClientProxy, FitRes] = (client_proxy, pre_res)
+    client_time_result: Tuple[str, float] = (client_proxy.cid, client_fit_time)
+
+    # Check result status code
+    if pre_res.status.code == Code.OK and client_fit_time is not None:
+        results.append(result)
+        if client_fit_time:
+            # log(
+            #     INFO,
+            #     "cid=%s: client_fit_time=%s",
+            #     client_proxy.cid,
+            #     client_fit_time
+            # )
+            # if client_proxy.cid not in client_fittime_dict:
+            #     client_fittime_dict[client_proxy.cid] = []
+            # client_fittime_dict[client_proxy.cid].append(client_fit_time)
+            client_time_results.append(client_time_result)
+        return
+
+    # Not successful, client returned a result where the status code is not OK
+    failures.append(result)

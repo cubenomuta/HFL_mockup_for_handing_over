@@ -1,5 +1,8 @@
 import timeit
 from typing import Any, Dict, Optional
+from logging import DEBUG, INFO
+from flwr.common.logger import log
+import time
 
 from flwr.common import (
     Code,
@@ -102,7 +105,7 @@ class FlowerRayDMLClient(FlowerClient):
             batch_size=batch_size,
             shuffle=True,
         )
-
+        start_time = time.perf_counter()
         mutual_train(
             client_net=self.net,
             meme_net=self.meme,
@@ -114,6 +117,8 @@ class FlowerRayDMLClient(FlowerClient):
             weight_decay=weight_decay,
             device=self.device,
         )
+        end_time = time.perf_counter()
+        mutual_train_time = end_time - start_time
         parameters_prime: Parameters = ndarrays_to_parameters(self.meme.get_weights())
         parameters_dual: Parameters = ndarrays_to_parameters(self.net.get_weights())
 
@@ -125,6 +130,7 @@ class FlowerRayDMLClient(FlowerClient):
                 metrics={},
             ),
             parameters_dual,
+            mutual_train_time,
         )
 
     def evaluate(self, ins: EvaluateIns) -> EvaluateRes:
