@@ -13,13 +13,13 @@ done < ${CUDA_VISIBLE_DEVICES_FILE}
 fi
 
 # fl configuration
-strategy="FedFog"
+strategy="F2MKD"
 server_model="tinyCNN"
 client_model="tinyCNN"
 dataset="FashionMNIST"
-targets=("iid_noniid-dir0.5" "noniid-label2_part-noniid_0.2")
-num_rounds=300
-num_fogs=5
+targets=("iid_noniid-dir0.1_kmeans_cluster_num=10" "iid_noniid-dir0.5_kmeans_cluster_num=10")
+num_rounds=3
+num_fogs=3
 num_clients=100
 fraction_fit=1
 
