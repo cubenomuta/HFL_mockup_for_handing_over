@@ -3,6 +3,7 @@ import warnings
 from logging import INFO
 from os import stat
 from typing import Dict
+import time
 
 import ray
 import torch
@@ -182,6 +183,7 @@ class FlowerRayClient(FlowerClient):
             shuffle=True,
         )
 
+        start_time = time.perf_counter()
         train(
             self.net,
             trainloader=trainloader,
@@ -190,6 +192,8 @@ class FlowerRayClient(FlowerClient):
             weight_decay=weight_decay,
             device=self.device,
         )
+        end_time = time.perf_counter()
+        client_fit_time = end_time - start_time
         parameters_prime: Parameters = ndarrays_to_parameters(self.net.get_weights())
 
         return FitRes(
@@ -197,7 +201,7 @@ class FlowerRayClient(FlowerClient):
             parameters=parameters_prime,
             num_examples=len(self.trainset),
             metrics={},
-        )
+        ), client_fit_time
 
     def evaluate(self, ins: EvaluateIns) -> EvaluateRes:
         # unwrapping EvaluateIns

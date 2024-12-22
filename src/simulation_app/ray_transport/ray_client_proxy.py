@@ -52,15 +52,20 @@ def launch_and_fit(
     client_fn: ClientFn, cid: str, fit_ins: common.FitIns
 ) -> common.FitRes:
     """Exectue fit remotely."""
-    start_time = time.perf_counter()
+    # start_time = time.perf_counter()
     client: Client = _create_client(client_fn, cid)
-    res = maybe_call_fit(
+    res, client_fit_time = maybe_call_fit(
         client=client,
         fit_ins=fit_ins,
     )
     del client
-    end_time = time.perf_counter()
-    client_fit_time = end_time - start_time
+    # log(
+    #     INFO,
+    #     "launch_and_fit(): client_fit_time=%s",
+    #     client_fit_time,
+    # )
+    # end_time = time.perf_counter()
+    # client_fit_time = end_time - start_time
 
     return res, client_fit_time
 
