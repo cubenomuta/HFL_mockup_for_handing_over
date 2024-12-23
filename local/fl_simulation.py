@@ -165,7 +165,7 @@ def main():
     def evaluate_metrics_aggregation_fn(eval_metrics: List[Tuple[int, Dict[str, Any]]]):
         metrics_aggregated = {
             "accuracy": {metrics["cid"]: metrics["acc"] for _, metrics in eval_metrics},
-            "loss": {metrics["cid"]: metrics["loss"] for _, metrics in eval_metrics},
+            # "loss": {metrics["cid"]: metrics["loss"] for _, metrics in eval_metrics},
         }
         return metrics_aggregated
 

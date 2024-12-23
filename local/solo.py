@@ -179,10 +179,16 @@ def solo_train(cid: str, ins: FitIns):
 
     testset = load_federated_dataset(
         dataset_name=dataset,
-        id=fid,
+        id=cid,
         train=False,
         target=target,
-        attribute="fog",
+        attribute="client",
+    )
+
+    log(
+        INFO,
+        "testset=%s",
+        len(testset)
     )
 
     # model configuration
