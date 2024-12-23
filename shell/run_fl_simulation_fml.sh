@@ -36,7 +36,7 @@ for target in "${targets[@]}"; do
         mkdir -p "${exp_dir}/metrics/"
     fi
 
-    ray start --head --min-worker-port 20000 --max-worker-port 29999 --num-cpus 20
+    ray start --head --min-worker-port 20000 --max-worker-port 29999 --num-cpus 5 --num-gpus 4
     sleep 1 
 
     python ./local/fl_simulation.py \
