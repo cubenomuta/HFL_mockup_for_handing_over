@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Tuple, Union, cast
 from pathlib import Path
 import json
 import os
+import time
 
 from flwr.common import (
     Code,
@@ -66,6 +67,7 @@ class HFLServer:
         self.save_dir: Optional[str] = save_dir
         self.fogs_time_result: Dict[str, List[float]] = {}
         self.clients_time_result: Dict[str, List[float]] = {}
+        self.server_time_result: List[float] = []
 
     def make_time_json(self, save_dir: str) -> None:
         """"Make Fog & Client Time Json"""
@@ -78,6 +80,9 @@ class HFLServer:
             save_path = Path(save_dir) / "time" / "client_train_time.json"
             with open(save_path, "w") as f:
                 json.dump(self.clients_time_result, f)
+            save_path = Path(save_dir) / "time" / "server_train_time.json"
+            with open(save_path, "w") as f:
+                json.dump(self.server_time_result, f)   
         return
 
     def set_max_workers(self, max_workers: Optional[int]) -> None:
@@ -298,11 +303,16 @@ class HFLServer:
             len(failures),
         )
 
+        start_time = time.perf_counter()
         # Aggregate training results
         aggregated_result: Tuple[
             Optional[Parameters],
             Dict[str, Scalar],
         ] = self.strategy.aggregate_fit(server_round, results, failures)
+
+        end_time = time.perf_counter()
+        server_time = end_time - start_time
+        self.server_time_result.append(server_time)
 
         parameters_aggregated, metrics_aggregated = aggregated_result
 
