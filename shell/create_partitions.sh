@@ -3,19 +3,20 @@
 . ./shell/path.sh
 
 # FL system configuration
-num_fogs=3
-num_clients=25
+num_fogs=5
+num_clients=100
 
 # dataset configuration
-dataset="NIH_CXR"
+dataset="FashionMNIST" # FashionMNIST, CIFAR-10
 fog_partitions=$1 # "noniid-label2,1", "iid"
-client_partitions=$2 # "noniid-label2,1", "iid"
+client_partitions=$2 # "noniid-label2,1", "iid" "noniid-dir0.1,0.5"
 client_shuffle_ratio=0.5
 seed=1234
 # cluster_alg="kmeans"
 # cluster_alg="hierarchical"
 cluster_alg="linkage"
 # cluster_alg="dbscan"
+cluster_num=2
 
 
 if [[ "$client_partitions" == *"noniid-dir"* ]]; then
@@ -40,6 +41,7 @@ python ./local/create_partitions.py \
 --save_dir ${save_dir} \
 --seed ${seed} \
 --cluster_alg ${cluster_alg} \
+--cluster_num ${cluster_num} \
 1> "${save_dir}/logs/standard.log" \
 2> "${save_dir}/logs/flower.log"
 
