@@ -14,11 +14,11 @@ strategy="F2MKDC"
 server_model="tinyCNN"
 # client_model="tinyCNN"
 client_models="tinyCNN" # csv形式
-dataset="NIH_CXR"
-target="noniid-label2_part-noniid_linkage_0.5"
-num_rounds=300
-num_fogs=2
-num_clients=5
+dataset="FashionMNIST"
+target="iid_noniid-dir0.1_kmeans_cluster_num=2"
+num_rounds=10
+num_fogs=3
+num_clients=100
 fraction_fit=1
 
 # fit configuration
