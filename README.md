@@ -30,20 +30,14 @@ pip install pipenv
 pipenv install
 ```
 
-### 3. torchのインストールでエラーが起こる場合**
+### 3. torchのインストール
 
-3.1. Pipfileからtorch, torchvisionを削除
-
-3.2. ライブラリのインストールを実行
-```sh
-pipenv install
-```
-3.3. 仮想環境に入る
+3.1. 仮想環境に入る
 ```sh
 pipenv shell
 ```
 
-3.4. CUDAのバージョンに合わせて下記を実行する
+3.2. CUDAのバージョンに合わせて下記のいずれかを実行する
 ```
 # CUDA 11.8
 conda install pytorch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1  pytorch-cuda=11.8 -c pytorch -c nvidia
